@@ -1,0 +1,79 @@
+{# Финальный промпт sales-аргумента: скоринг + SHAP + BRD + скрипты онбординга #}
+{% include 'system_context.j2' %}
+
+---
+## Задача
+Напиши sales-аргумент (3–4 предложения) для сотрудника онбординга в стиле **скрипта из BRD** (ниже).
+Формат 1 — цельный текст для озвучивания; дополнительно — 3 тезиса (формат 2).
+
+**Комплаенс:**
+{% for rule in compliance_rules %}
+- {{ rule }}
+{% endfor %}
+
+---
+## Клиент
+| Поле | Значение |
+|------|----------|
+| ID | {{ client_id }} |
+| Сегмент приоритета P* | {{ priority_segment }} |
+| Тип | {{ smb_type_label }} |
+| Город | {{ city }} |
+| Категория | {{ categ_name }} |
+| ОКВЭД | {{ okved_major }} |
+| Дней с ОГРН | {{ days_from_ogrn }} |
+| Пакет услуг | {{ srvpackage_sale_uk }} |
+| Сценарий онбординга (AME) | {{ onboarding_scenario_id | default("—") }} |
+
+## Предложение
+- **Продукт:** {{ product_name }} (`{{ product_id }}`)
+- **Склонность (модель):** {{ "%.1f"|format(propensity_score * 100) }}%
+
+## Почему предложение релевантно (топ-признаки модели)
+{% for f in top_features %}
+- **{{ f.label_ru }}** = `{{ f.value }}` → {{ "повышает" if f.direction == "increases" else "снижает" }} склонность
+{% endfor %}
+
+## Скрипт из BRD (ориентир для стиля и логики)
+**Раздел:** {{ brd_section | default("онбординг") }}
+
+**Вопросы для выявления потребности:**
+{% for q in discovery_questions %}
+- {{ q }}
+{% endfor %}
+
+**Заход:**
+{{ brd_opener | trim }}
+
+**Преимущества (озвучить 1–2 релевантных):**
+{% for b in brd_benefits %}
+- {{ b }}
+{% endfor %}
+
+{% if brd_script_example %}
+**Пример шаблона (вариант 2 — с параметрами клиента, адаптируй смысл, не копируй цифры слепо):**
+{{ brd_script_example | trim }}
+{% endif %}
+
+{% if zpp_segment_examples %}
+**Сегменты ЗПП из BRD (если продукт — зарплатный проект):**
+{% for seg in zpp_segment_examples %}
+- {{ seg.segment_name }}: {{ seg.sales_argument | trim }}
+{% endfor %}
+{% endif %}
+
+{% if brd_closing %}
+**Завершение диалога (BRD):** {{ brd_closing | trim }}
+{% endif %}
+
+---
+## Формат ответа (JSON)
+```json
+{
+  "segment_description_ru": "<1 предложение: кто этот клиент>",
+  "sales_argument_ru": "<3-4 предложения в стиле скрипта BRD>",
+  "why_it_fits_ru": "<связь признаков, склонности и продукта>",
+  "thesis_bullets": ["<тезис 1>", "<тезис 2>", "<тезис 3>"],
+  "discovery_question_suggested": "<один вопрос из BRD под этого клиента>"
+}
+```

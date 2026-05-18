@@ -1,0 +1,40 @@
+{# Промпт: mock/LLM генерация одной строки склонности #}
+{% include 'system_context.j2' %}
+
+---
+Сгенерируй JSON для одной записи датасета склонности (client × product).
+
+### Клиент (из онбординга, задача 1)
+- client_id: {{ client_id }}
+- priority_segment: **{{ priority_segment }}** — {{ segment_title }}
+- smb_type_code: {{ smb_type_code }}
+- okved_major: {{ okved_major }}
+- categ_name: {{ categ_name }}
+- city: {{ city }}
+- days_from_ogrn: {{ days_from_ogrn }}
+- week_sum_transactions: {{ week_sum_transactions }}
+- srvpackage_sale_uk: {{ srvpackage_sale_uk }}
+
+### Продукт
+- product_id: {{ product_id }}
+- product_name: {{ product_name }}
+
+### Топ-признаки из BRD для этого продукта (используй в top_features)
+{% for feat in brd_features %}
+- {{ feat }}
+{% endfor %}
+
+### Требуемый JSON
+```json
+{
+  "propensity_score": <float 0..1>,
+  "propensity_label": <0|1>,
+  "top_features": [
+    {"name": "<brd_feature>", "value": <...>, "direction": "increases|decreases", "label_ru": "<по-русски>"}
+  ],
+  "segment_description_ru": "<1 предложение, связь с {{ priority_segment }}>",
+  "sales_argument_draft_ru": "<2-3 предложения, черновик аргумента>"
+}
+```
+
+Правила: score выше, если продукт в якорях сегмента {{ priority_segment }}; для «Начало» — при pkg none/base; для ЗПП — ИП/ЮЛ с выплатами физлицам.

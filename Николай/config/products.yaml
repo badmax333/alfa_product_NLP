@@ -1,0 +1,77 @@
+# Продукты онбординга с моделью склонности (пилот)
+# Скрипты продаж: config/brd_scripts.yaml (BRD сэйлз-аргументы.pdf)
+products:
+  zpp:
+    name_ru: "Зарплатный проект"
+    anchor: false
+    onboarding_scenario_id: 10
+    brd_features:
+      - segment_by_fact_revenue  # proxy: share_last_month buckets
+      - okved_major
+      - ogrn_exist_months        # proxy: days_from_ogrn
+      - smb_type_code
+      - abm_paymentfiz_rate      # proxy: week_mean + prev_managers
+
+  alfa_payments:
+    name_ru: "Подписка Альфа-платежи"
+    anchor: true
+    onboarding_scenario_id: 6
+    brd_features:
+      - sum_deb_fl_30
+      - balance_rur_amt_30_min
+      - okved_major
+      - abm_main_screen_cnt
+
+  nachalo:
+    name_ru: "Подписка «Начало»"
+    anchor: true
+    onboarding_scenario_id: 6
+    brd_features:
+      - sum_deb_commission
+      - sum_cred_30
+      - balance_rur_amt_30_min
+      - srvpackage_zero
+
+  trade_acquiring:
+    name_ru: "Торговый эквайринг"
+    anchor: false
+    onboarding_scenario_id: 7
+    brd_features:
+      - okved_major
+      - week_sum_transactions
+      - categ_name_retail
+
+  internet_acquiring:
+    name_ru: "Интернет-эквайринг"
+    anchor: false
+    onboarding_scenario_id: 11
+    brd_features:
+      - categ_name_digital
+      - sourceattr_online
+      - week_sum_transactions
+
+  tax_jar:
+    name_ru: "Налоговая копилка"
+    anchor: true
+    onboarding_scenario_id: 14
+    brd_features:
+      - smb_type_code
+      - categ_name_tax
+      - nkop_num_live
+
+  savings:
+    name_ru: "Накопительный счёт"
+    anchor: true
+    brd_features:
+      - balance_proxy
+      - share_last_3_months
+      - accum
+
+  accounting:
+    name_ru: "Бухгалтерия"
+    anchor: true
+    onboarding_scenario_id: 12
+    brd_features:
+      - smb_type_code
+      - days_from_ogrn
+      - complexity

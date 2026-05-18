@@ -1,0 +1,58 @@
+[
+  {
+    "product_id": "zpp",
+    "model_path": "models/per_product/zpp.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.97603251861188,
+    "pr_auc": 0.9724576027679421
+  },
+  {
+    "product_id": "alfa_payments",
+    "model_path": "models/per_product/alfa_payments.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.9670549809471964,
+    "pr_auc": 0.9931812361838068
+  },
+  {
+    "product_id": "nachalo",
+    "model_path": "models/per_product/nachalo.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.977819055944056,
+    "pr_auc": 0.9939472506575515
+  },
+  {
+    "product_id": "trade_acquiring",
+    "model_path": "models/per_product/trade_acquiring.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.9903318295739348,
+    "pr_auc": 0.9893408312959548
+  },
+  {
+    "product_id": "internet_acquiring",
+    "model_path": "models/per_product/internet_acquiring.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.9998380230715888,
+    "pr_auc": 0.9995785396856554
+  },
+  {
+    "product_id": "tax_jar",
+    "model_path": "models/per_product/tax_jar.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.95171368373649,
+    "pr_auc": 0.9338621701582938
+  },
+  {
+    "product_id": "savings",
+    "model_path": "models/per_product/savings.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.9742753199126093,
+    "pr_auc": 0.9903163744940706
+  },
+  {
+    "product_id": "accounting",
+    "model_path": "models/per_product/accounting.pkl",
+    "n_train": 4000,
+    "roc_auc": 0.9732074223707967,
+    "pr_auc": 0.9862837515289784
+  }
+]

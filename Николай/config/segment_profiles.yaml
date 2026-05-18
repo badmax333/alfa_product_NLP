@@ -1,0 +1,50 @@
+# Портреты P1–P8 (классификатор ступени 1) — контекст для LLM-синтетики склонности
+source: "alfa_onboarding_dataset + BRD + общая архитектура"
+
+segments:
+  P1:
+    title: "Розничный продавец"
+    anchor_products: [trade_acquiring]
+    description: "ИП/ЮЛ розница, ОКВЭД 47, офлайн-продажи, канал branch."
+  P2:
+    title: "IT / Онлайн-бизнес"
+    anchor_products: [internet_acquiring, alfa_payments]
+    description: "Разработка, SaaS, digital-категории, онлайн-канал привлечения."
+  P3:
+    title: "Строитель / Подрядчик"
+    anchor_products: [zpp, trade_acquiring]
+    description: "Строительство, высокие обороты, выплаты подрядчикам и зарплаты."
+  P4:
+    title: "Фрилансер / Самозанятый ИП"
+    anchor_products: [nachalo, alfa_payments, internet_acquiring]
+    description: "ИП услуги, умеренный оборот, подписки переводов, digital."
+  P5:
+    title: "Новое ЮЛ / Стартап"
+    anchor_products: [nachalo, tax_jar, accounting]
+    description: "Молодой бизнес <90 дней с ОГРН, старт тарифа, налоги, бухгалтерия."
+  P6:
+    title: "Услуги / HoReCa"
+    anchor_products: [trade_acquiring, tax_jar]
+    description: "Общепит, услуги, эквайринг в точке, сезонные налоги."
+  P7:
+    title: "Логистика / Транспорт"
+    anchor_products: [zpp, trade_acquiring]
+    description: "Перевозки, зарплатный проект для водителей/склада."
+  P8:
+    title: "Агробизнес / КФХ"
+    anchor_products: [zpp, nachalo]
+    description: "Сельхоз, КФХ/ИП, сезонные выплаты, старт с подписками."
+
+# Маппинг BRD-имён фичей → колонки датасета онбординга
+brd_feature_map:
+  segment_by_fact_revenue: share_last_month
+  ogrn_exist_months: days_from_ogrn
+  abm_paymentfiz_rate: week_mean_transactions
+  sum_deb_fl_30: week_sum_transactions
+  balance_rur_amt_30_min: share_last_month
+  balance_proxy: accum
+  srvpackage_zero: srvpackage_sale_uk
+  categ_name_digital: categ_name
+  categ_name_retail: categ_name
+  categ_name_tax: categ_name
+  sourceattr_online: sourceattr_ccode

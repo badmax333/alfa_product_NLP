@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+.venv/
+venv/
+
+# Опциональные тяжёлые артефакты демо (перегенерируются локально)
+data/scored_clients_top3.jsonl
+data/scored_clients_top3.csv
+data/sales_arguments.jsonl
