@@ -1,0 +1,91 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv/
+virtualenv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.db
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Project specific
+*.parquet
+*.pkl
+*.pickle
+*.joblib
+
+# Model files (если большие модели)
+*.h5
+*.pth
+*.pt
+*.model
+
+# Data files (если большие данные)
+*.csv
+*.xlsx
+/data/
+/raw_data/
+/processed_data/
+
+# Config with secrets
+config_local.py
+secrets.py
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# mypy
+.mypy_cache/
+
+# pytest
+.pytest_cache/
+
+# Docker
+.dockerignore
+*.tar.gz
