@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alfa Smart Onboarding — Ступень 1</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="logo" aria-hidden="true">А</div>
+    <div class="header-text">
+      <h1>Smart Onboarding</h1>
+      <p>Ступень 1 · Классификация бизнес-портрета (День 0–4)</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card panel-input">
+      <h2>Входные данные клиента</h2>
+      <p class="hint">Выберите один из 5 демо-профилей или настройте 8 ключевых признаков. Остальные 42 признака зафиксированы.</p>
+
+      <div class="presets" id="presets"></div>
+
+      <form id="predict-form" class="form-grid"></form>
+
+      <button type="submit" form="predict-form" class="btn-primary" id="btn-predict">
+        Классифицировать
+      </button>
+    </section>
+
+    <section class="card panel-result" id="result-panel">
+      <h2>Результат классификации</h2>
+      <div id="result-placeholder" class="placeholder">
+        Заполните профиль и нажмите «Классифицировать»
+      </div>
+      <div id="result-content" class="hidden"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    POC · CatBoost Multiclass · alfa_classifier.cbm
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
