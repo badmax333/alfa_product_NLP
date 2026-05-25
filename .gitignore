@@ -50,7 +50,7 @@ htmlcov/
 .env.local
 .env.*.local
 
-# Project specific
+# Project specific (глобально; готовые артефакты — исключения ниже)
 *.parquet
 *.pkl
 *.pickle
@@ -68,6 +68,10 @@ htmlcov/
 /data/
 /raw_data/
 /processed_data/
+
+# Готово: папка Николай — веса модели и синтетический датасет
+!Николай/models/propensity_lgbm.pkl
+!Николай/data/propensity_synthetic.csv
 
 # Config with secrets
 config_local.py

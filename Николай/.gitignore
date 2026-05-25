@@ -5,7 +5,13 @@ __pycache__/
 .venv/
 venv/
 
-# Опциональные тяжёлые артефакты демо (перегенерируются локально)
+# Входной датасет онбординга — только локально
+data/alfa_onboarding_dataset_5000.csv
+
+# Выходы полного пайплайна — перегенерируются локально
 data/scored_clients_top3.jsonl
 data/scored_clients_top3.csv
 data/sales_arguments.jsonl
+
+# Доп. модели по продуктам (опционально; основная — propensity_lgbm.pkl)
+models/per_product/*.pkl
