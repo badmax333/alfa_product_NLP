@@ -11,7 +11,7 @@
     <div class="logo" aria-hidden="true">А</div>
     <div class="header-text">
       <h1>Smart Onboarding</h1>
-      <p>Ступень 1 · Классификация → Sales-аргумент → Оценка взаимодействия</p>
+      <p>Smart pipeline · Классификация → Sales-аргумент → Метрики → Склонность к продуктам</p>
     </div>
   </header>
 
@@ -30,6 +30,11 @@
     <button class="tab-btn" data-tab="metrics" id="tab-btn-metrics">
       <span class="tab-num">3</span>
       <span class="tab-label">Метрики взаимодействия</span>
+    </button>
+    <div class="tab-arrow">→</div>
+    <button class="tab-btn" data-tab="propensity" id="tab-btn-propensity">
+      <span class="tab-num">4</span>
+      <span class="tab-label">Склонность к продуктам</span>
     </button>
   </nav>
 
@@ -179,12 +184,53 @@
           Нажмите «Сгенерировать метрики»
         </div>
         <div id="metrics-content" class="hidden"></div>
+
+        <div id="to-propensity-bar" class="next-step-bar hidden">
+          <span>Метрики рассчитаны — перейдите к скорингу продуктов</span>
+          <button class="btn-secondary" onclick="switchTab('propensity')">
+            Склонность →
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- ВКЛАДКА 4: Склонность к продуктам                       -->
+  <!-- ======================================================= -->
+  <div id="tab-propensity" class="tab-content hidden">
+    <main class="layout layout-3col">
+
+      <section class="card col-client-profile">
+        <h2>Контекст клиента</h2>
+        <div id="propensity-no-prev" class="placeholder">
+          Сначала рассчитайте метрики взаимодействия на шаге 3
+        </div>
+        <div id="propensity-client-summary" class="hidden"></div>
+      </section>
+
+      <section class="card col-prompt">
+        <h2>Stage 2 scoring</h2>
+        <p class="hint">
+          Модель оценивает склонность клиента к каждому продукту и выбирает top-3 для следующего предложения.
+        </p>
+        <button class="btn-primary" id="btn-score-propensity" onclick="scorePropensity()">
+          Рассчитать склонность
+        </button>
+      </section>
+
+      <section class="card col-metrics">
+        <h2>Рекомендованные продукты</h2>
+        <div id="propensity-placeholder" class="placeholder">
+          Нажмите «Рассчитать склонность»
+        </div>
+        <div id="propensity-content" class="hidden"></div>
       </section>
     </main>
   </div>
 
   <footer class="footer">
-    POC · CatBoost + Mistral · Ступень 1 · Alfa Smart Onboarding
+    POC · CatBoost + Mistral · Smart Onboarding
   </footer>
 
   <script src="/static/app.js"></script>

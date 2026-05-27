@@ -21,6 +21,9 @@ from api.schemas import (
     PredictResponse,
     PresetInfo,
     ProductRecommendation,
+    PropensityProductItem,
+    PropensityScoreRequest,
+    PropensityScoreResponse,
     RenderedPromptResponse,
     RenderMetricsPromptRequest,
     RenderSalesArgPromptRequest,
@@ -40,6 +43,7 @@ from config.stage1 import (
 )
 from models.classifier import predict
 from services.metrics_generator import generate_metrics, render_metrics_prompt
+from services.propensity_scorer import score_propensity
 from services.random_metrics_generator import generate_metrics_random
 from services.sales_argument_generator import generate_sales_argument
 from services.sales_arg_renderer import render_sales_arg_prompt
@@ -183,4 +187,27 @@ async def generate_metrics_endpoint(body: GenerateMetricsRequest):
         user_reaction_text=result["user_reaction_text"],
         metrics=[MetricValueItem(**m) for m in result["metrics"]],
         raw_llm_response=result["raw_llm_response"],
+    )
+
+
+@app.post("/api/v1/propensity/score", response_model=PropensityScoreResponse)
+async def score_propensity_endpoint(body: PropensityScoreRequest):
+    """Оценить склонность клиента к продуктам после расчета метрик взаимодействия."""
+    try:
+        result = score_propensity(
+            classification=body.classification,
+            client_features=body.client_features,
+            metrics_result=body.metrics_result,
+            top_k=body.top_k,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка скоринга склонности: {e}")
+
+    return PropensityScoreResponse(
+        portrait=result["portrait"],
+        portrait_label=result["portrait_label"],
+        model_source=result["model_source"],
+        interaction_interest_score=result["interaction_interest_score"],
+        top_products=[PropensityProductItem(**item) for item in result["top_products"]],
+        all_products=[PropensityProductItem(**item) for item in result["all_products"]],
     )

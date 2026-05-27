@@ -14,6 +14,7 @@ let selectedArgument = null;        // сгенерированный sales-ар
 let selectedChannel = "digital";    // "digital" | "voice"
 let selectedMethod = "llm";         // "llm" | "random"
 let metricsResult = null;           // результат /api/v1/metrics/generate
+let propensityResult = null;        // результат /api/v1/propensity/score
 
 // ============================================================
 // Tab navigation
@@ -29,6 +30,7 @@ function switchTab(tabId) {
 
   if (tabId === "sales") onEnterSalesTab();
   if (tabId === "metrics") onEnterMetricsTab();
+  if (tabId === "propensity") onEnterPropensityTab();
 }
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -246,6 +248,11 @@ document.getElementById("predict-form").addEventListener("submit", async (e) => 
       throw new Error(err.detail || `Ошибка ${res.status}`);
     }
     classificationResult = await res.json();
+    selectedArgument = null;
+    metricsResult = null;
+    propensityResult = null;
+    document.getElementById("tab-btn-metrics").classList.remove("done");
+    document.getElementById("tab-btn-propensity").classList.remove("done");
     renderClassificationResult(classificationResult);
   } catch (err) {
     showClassifyError(err.message || "Ошибка классификации");
@@ -334,6 +341,8 @@ function renderInteractionTypeButtons() {
 function selectInteractionType(typeId) {
   selectedInteractionType = typeId;
   selectedArgument = null;
+  metricsResult = null;
+  propensityResult = null;
   document.querySelectorAll(".itype-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.itype === typeId);
   });
@@ -343,6 +352,7 @@ function selectInteractionType(typeId) {
   document.getElementById("argument-placeholder").textContent =
     "Нажмите «Сгенерировать аргумент», чтобы получить персонализированный текст";
   document.getElementById("tab-btn-metrics").classList.remove("done");
+  document.getElementById("tab-btn-propensity").classList.remove("done");
   updateSalesPrompt();
 }
 
@@ -398,6 +408,8 @@ async function generateSalesArgument() {
     }
 
     selectedArgument = await res.json();
+    metricsResult = null;
+    propensityResult = null;
     renderArgumentCard(selectedArgument);
 
     if (selectedArgument.rendered_prompt) {
@@ -406,6 +418,7 @@ async function generateSalesArgument() {
 
     document.getElementById("to-metrics-bar").classList.remove("hidden");
     document.getElementById("tab-btn-metrics").classList.add("done");
+    document.getElementById("tab-btn-propensity").classList.remove("done");
   } catch (err) {
     placeholder.classList.remove("hidden");
     placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка генерации аргумента"}</div>`;
@@ -559,6 +572,9 @@ async function generateMetrics() {
   document.getElementById("metrics-placeholder").textContent =
     selectedMethod === "llm" ? "Отправляем запрос в Mistral…" : "Генерируем локально…";
   document.getElementById("metrics-content").classList.add("hidden");
+  document.getElementById("to-propensity-bar").classList.add("hidden");
+  propensityResult = null;
+  document.getElementById("tab-btn-propensity").classList.remove("done");
 
   try {
     const payload = {
@@ -588,6 +604,7 @@ async function generateMetrics() {
     }
 
     renderMetricsResult(metricsResult);
+    document.getElementById("to-propensity-bar").classList.remove("hidden");
   } catch (err) {
     document.getElementById("metrics-placeholder").classList.remove("hidden");
     document.getElementById("metrics-placeholder").innerHTML =
@@ -675,6 +692,155 @@ function formatMetricValue(m) {
     return { cls: warn ? "val-warn" : "", display: `${v} ${m.unit}` };
   }
   return { cls: "", display: String(v) };
+}
+
+// ============================================================
+// TAB 4 — Product propensity scoring
+// ============================================================
+function onEnterPropensityTab() {
+  const hasMetrics = classificationResult && selectedArgument && metricsResult;
+  document.getElementById("propensity-no-prev").classList.toggle("hidden", hasMetrics);
+  document.getElementById("propensity-client-summary").classList.toggle("hidden", !hasMetrics);
+
+  if (!hasMetrics) return;
+
+  renderPropensityContext();
+  if (propensityResult) {
+    renderPropensityResult(propensityResult);
+  }
+}
+
+function renderPropensityContext() {
+  const r = classificationResult;
+  const arg = selectedArgument;
+  const interestPct = metricsResult ? Math.round(metricsResult.interest_score * 100) : 0;
+
+  document.getElementById("propensity-client-summary").innerHTML = `
+    <div class="profile-summary">
+      <p class="section-label">Портрет</p>
+      <div class="profile-badge">
+        <span class="profile-class">${r.predicted_class}</span>
+        <span class="profile-name">${r.class_description}</span>
+      </div>
+
+      <p class="section-label">Предыдущее взаимодействие</p>
+      <div class="interest-score-box compact">
+        <div class="interest-score-value">${interestPct}%</div>
+        <div class="interest-score-label">интерес к аргументу</div>
+      </div>
+
+      <p class="section-label">Sales-аргумент</p>
+      <p style="font-weight:600;margin:0.35rem 0 0.25rem;font-size:0.92rem">${arg.headline}</p>
+      <div class="metrics-argument-preview">${arg.body}</div>
+
+      <p class="section-label">Ключевые признаки</p>
+      <ul class="profile-features">${renderClientFeaturesRows()}</ul>
+    </div>
+  `;
+}
+
+async function scorePropensity() {
+  if (!classificationResult || !metricsResult) {
+    alert("Сначала рассчитайте метрики взаимодействия");
+    return;
+  }
+
+  const btn = document.getElementById("btn-score-propensity");
+  const placeholder = document.getElementById("propensity-placeholder");
+  btn.disabled = true;
+  btn.textContent = "Считаем…";
+  placeholder.classList.remove("hidden");
+  placeholder.textContent = "Скорим продукты для клиента…";
+  document.getElementById("propensity-content").classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/v1/propensity/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: classificationResult,
+        client_features: clientFeatures,
+        metrics_result: metricsResult,
+        sales_argument: selectedArgument,
+        top_k: 3,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Ошибка ${res.status}`);
+    }
+
+    propensityResult = await res.json();
+    renderPropensityResult(propensityResult);
+    document.getElementById("tab-btn-propensity").classList.add("done");
+  } catch (err) {
+    placeholder.classList.remove("hidden");
+    placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка скоринга склонности"}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Рассчитать склонность";
+  }
+}
+
+function renderPropensityResult(data) {
+  document.getElementById("propensity-placeholder").classList.add("hidden");
+  const box = document.getElementById("propensity-content");
+  box.classList.remove("hidden");
+
+  const cards = (data.top_products || [])
+    .map((p) => {
+      const scorePct = Math.round(p.propensity_score * 100);
+      const factors = (p.top_factors || [])
+        .map(
+          (f) => `
+            <li>
+              <span>
+                <strong>${f.label}</strong>
+                <small>${f.reason}</small>
+              </span>
+              <span class="${f.direction === "increases" ? "shap-pos" : "shap-neg"}">
+                ${f.impact > 0 ? "+" : ""}${f.impact}
+              </span>
+            </li>`
+        )
+        .join("");
+
+      const ame = p.product_ame ? `AME-${p.product_ame}` : "без AME";
+      const anchor = p.anchor ? "Якорный" : "Дополнительный";
+
+      return `
+        <div class="propensity-card">
+          <div class="propensity-card-head">
+            <span class="rank-badge">#${p.rank}</span>
+            <div>
+              <h3>${p.product_name}</h3>
+              <p>${ame} · ${anchor}</p>
+            </div>
+            <div class="propensity-score">${scorePct}%</div>
+          </div>
+          <div class="propensity-score-bar">
+            <span style="width:${scorePct}%"></span>
+          </div>
+          <p class="propensity-description">${p.description}</p>
+          <p class="section-label">Факторы скоринга</p>
+          <ul class="propensity-factors">${factors}</ul>
+        </div>`;
+    })
+    .join("");
+
+  const sourceLabels = {
+    lightgbm_propensity_lgbm: "LightGBM propensity_lgbm.pkl",
+    rule_based_propensity_fallback: "Fallback-скорер из логики Николая",
+  };
+  const sourceLabel = sourceLabels[data.model_source] || data.model_source;
+
+  box.innerHTML = `
+    <div class="model-source-note">
+      Источник: ${sourceLabel}
+    </div>
+    ${cards}
+  `;
 }
 
 // ============================================================

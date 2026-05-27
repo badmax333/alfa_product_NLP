@@ -166,3 +166,46 @@ class MetricsResponse(BaseModel):
     user_reaction_text: str
     metrics: list[MetricValueItem]
     raw_llm_response: str
+
+
+# ---------------------------------------------------------------------------
+# Product propensity scoring (Stage 2)
+# ---------------------------------------------------------------------------
+
+class PropensityFactorItem(BaseModel):
+    feature: str
+    label: str
+    value: Any
+    impact: float
+    direction: str
+    reason: str
+
+
+class PropensityProductItem(BaseModel):
+    rank: int
+    product_id: str
+    product_name: str
+    product_ame: int | None
+    scenario_id: int | None
+    description: str
+    anchor: bool
+    propensity_score: float
+    model_logit: float
+    top_factors: list[PropensityFactorItem]
+
+
+class PropensityScoreRequest(BaseModel):
+    classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
+    client_features: dict[str, Any] = Field(default_factory=dict)
+    metrics_result: dict[str, Any] = Field(description="Результат /api/v1/metrics/generate")
+    sales_argument: dict[str, Any] = Field(default_factory=dict)
+    top_k: int = Field(default=3, ge=1, le=8)
+
+
+class PropensityScoreResponse(BaseModel):
+    portrait: str
+    portrait_label: str
+    model_source: str
+    interaction_interest_score: float | None
+    top_products: list[PropensityProductItem]
+    all_products: list[PropensityProductItem]

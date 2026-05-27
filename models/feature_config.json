@@ -1,0 +1,47 @@
+{
+  "cat_features": [
+    "product_id",
+    "priority_segment",
+    "smb_type_code",
+    "okved_major_wrapped",
+    "categ_name",
+    "srvpackage_sale_uk",
+    "sourceattr_ccode",
+    "city",
+    "addrf_region_name",
+    "division_name"
+  ],
+  "num_features": [
+    "okved_major",
+    "okved_cnt_total",
+    "okved_groups_unique_cnt",
+    "okved_groups_share",
+    "days_from_ogrn",
+    "days_from_smb",
+    "ogrn_days_end_month",
+    "ogrn_days_end_quarter",
+    "week_sum_transactions",
+    "week_mean_transactions",
+    "share_last_month",
+    "share_last_3_months",
+    "acquiring_num_live",
+    "zpp_num_live",
+    "nkop_num_live",
+    "rko_num_live",
+    "apin_salary_last_days",
+    "apin_product_active_days",
+    "xpin_start_days",
+    "days_from_authperson_registration",
+    "prev_managers",
+    "accum",
+    "impnt",
+    "to_activate",
+    "complexity",
+    "get_scores"
+  ],
+  "target": "propensity_label",
+  "metrics": {
+    "roc_auc": 0.9840804341867898,
+    "pr_auc": 0.9881347942554627
+  }
+}
