@@ -2,13 +2,34 @@
 
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
+
+load_dotenv()
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from api.schemas import ConfigResponse, PredictRequest, PredictResponse, PresetInfo, ProductRecommendation, ShapFeatureItem
+from api.schemas import (
+    ConfigResponse,
+    GenerateMetricsRequest,
+    InteractionTypeItem,
+    MetricValueItem,
+    MetricsResponse,
+    PredictRequest,
+    PredictResponse,
+    PresetInfo,
+    ProductRecommendation,
+    RenderedPromptResponse,
+    RenderMetricsPromptRequest,
+    RenderSalesArgPromptRequest,
+    SalesArgumentItem,
+    SalesArgumentsConfig,
+    ShapFeatureItem,
+)
+from config.sales_arguments import INTERACTION_TYPES, MOCK_SALES_ARGUMENTS
 from config.stage1 import (
+    CLASS_DESCRIPTIONS,
     DEFAULT_FEATURES,
     DEMO_PRESETS,
     EDITABLE_FEATURES,
@@ -16,6 +37,9 @@ from config.stage1 import (
     FIELD_OPTIONS,
 )
 from models.classifier import predict
+from services.metrics_generator import generate_metrics, render_metrics_prompt
+from services.random_metrics_generator import generate_metrics_random
+from services.sales_arg_renderer import render_sales_arg_prompt
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
@@ -45,6 +69,7 @@ async def get_config():
         field_options=FIELD_OPTIONS,
         presets=presets,
         default_overrides=default_overrides,
+        class_descriptions=CLASS_DESCRIPTIONS,
     )
 
 
@@ -58,4 +83,82 @@ async def predict_segment(body: PredictRequest):
         probabilities=result["probabilities"],
         recommended_product=ProductRecommendation(**result["recommended_product"]),
         top5_feature_importance=[ShapFeatureItem(**item) for item in result["top5_feature_importance"]],
+    )
+
+
+@app.get("/api/v1/sales-args/config", response_model=SalesArgumentsConfig)
+async def get_sales_args_config():
+    """Вернуть типы взаимодействия и mock sales-аргументы."""
+    return SalesArgumentsConfig(
+        interaction_types=[InteractionTypeItem(**t) for t in INTERACTION_TYPES],
+        mock_arguments=[SalesArgumentItem(**a) for a in MOCK_SALES_ARGUMENTS],
+    )
+
+
+@app.post("/api/v1/sales-args/render-prompt", response_model=RenderedPromptResponse)
+async def render_sales_arg_prompt_endpoint(body: RenderSalesArgPromptRequest):
+    """Рендерить шаблон sales-аргумента для отображения промпта в UI (Tab 2)."""
+    try:
+        prompt = render_sales_arg_prompt(
+            classification=body.classification,
+            interaction_type=body.interaction_type,
+            client_features=body.client_features,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта: {e}")
+    return RenderedPromptResponse(rendered_prompt=prompt)
+
+
+@app.post("/api/v1/metrics/render-prompt", response_model=RenderedPromptResponse)
+async def render_metrics_prompt_endpoint(body: RenderMetricsPromptRequest):
+    """Рендерить промпт для генерации метрик без вызова Mistral (для превью в UI)."""
+    if body.channel not in ("digital", "voice"):
+        raise HTTPException(status_code=422, detail="channel должен быть 'digital' или 'voice'")
+    try:
+        prompt = render_metrics_prompt(
+            classification=body.classification,
+            sales_argument=body.sales_argument,
+            channel=body.channel,
+            client_features=body.client_features,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта: {e}")
+    return RenderedPromptResponse(rendered_prompt=prompt)
+
+
+@app.post("/api/v1/metrics/generate", response_model=MetricsResponse)
+async def generate_metrics_endpoint(body: GenerateMetricsRequest):
+    """Сгенерировать синтетические метрики взаимодействия (LLM или случайно)."""
+    if body.channel not in ("digital", "voice"):
+        raise HTTPException(status_code=422, detail="channel должен быть 'digital' или 'voice'")
+    if body.method not in ("llm", "random"):
+        raise HTTPException(status_code=422, detail="method должен быть 'llm' или 'random'")
+    try:
+        if body.method == "random":
+            result = generate_metrics_random(
+                classification=body.classification,
+                sales_argument=body.sales_argument,
+                channel=body.channel,
+                client_features=body.client_features,
+            )
+        else:
+            result = generate_metrics(
+                classification=body.classification,
+                sales_argument=body.sales_argument,
+                channel=body.channel,
+                client_features=body.client_features,
+            )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации: {e}")
+
+    return MetricsResponse(
+        channel=result["channel"],
+        portrait=result["portrait"],
+        rendered_prompt=result["rendered_prompt"],
+        interest_score=result["interest_score"],
+        user_reaction_text=result["user_reaction_text"],
+        metrics=[MetricValueItem(**m) for m in result["metrics"]],
+        raw_llm_response=result["raw_llm_response"],
     )

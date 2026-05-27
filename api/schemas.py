@@ -67,3 +67,93 @@ class ConfigResponse(BaseModel):
     default_overrides: dict[str, Any] = Field(
         description="Значения редактируемых полей из базового профиля"
     )
+    class_descriptions: dict[str, str] = Field(
+        description="Описания 8 классов (портретов) для подсказок"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Sales arguments
+# ---------------------------------------------------------------------------
+
+class SalesArgumentItem(BaseModel):
+    id: str
+    interaction_type: str
+    channel: str
+    portrait: str
+    portrait_label: str
+    product_ame: int
+    product_name: str
+    headline: str
+    body: str
+    cta: str
+    note: str
+
+
+class InteractionTypeItem(BaseModel):
+    id: str
+    label: str
+    channel: str
+    description: str
+
+
+class SalesArgumentsConfig(BaseModel):
+    interaction_types: list[InteractionTypeItem]
+    mock_arguments: list[SalesArgumentItem]
+
+
+# ---------------------------------------------------------------------------
+# Prompt rendering (для отображения реальных промптов в UI)
+# ---------------------------------------------------------------------------
+
+class RenderSalesArgPromptRequest(BaseModel):
+    classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
+    interaction_type: str = Field(description="'banner' | 'push' | 'voice'")
+    client_features: dict[str, Any] = Field(default_factory=dict)
+
+
+class RenderMetricsPromptRequest(BaseModel):
+    classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
+    sales_argument: dict[str, Any] = Field(description="Выбранный mock sales-аргумент")
+    channel: str = Field(description="'digital' или 'voice'")
+    client_features: dict[str, Any] = Field(default_factory=dict)
+
+
+class RenderedPromptResponse(BaseModel):
+    rendered_prompt: str
+
+
+# ---------------------------------------------------------------------------
+# Metrics generation
+# ---------------------------------------------------------------------------
+
+class GenerateMetricsRequest(BaseModel):
+    classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
+    sales_argument: dict[str, Any] = Field(description="Выбранный mock sales-аргумент")
+    channel: str = Field(description="'digital' или 'voice'")
+    client_features: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Признаки клиента из формы (8 редактируемых полей)",
+    )
+    method: str = Field(default="llm", description="'llm' — через Mistral, 'random' — локально")
+
+
+class MetricValueItem(BaseModel):
+    name: str
+    label: str
+    level: int
+    level_name: str
+    type: str
+    unit: str
+    description: str
+    value: Any
+
+
+class MetricsResponse(BaseModel):
+    channel: str
+    portrait: str
+    rendered_prompt: str
+    interest_score: float
+    user_reaction_text: str
+    metrics: list[MetricValueItem]
+    raw_llm_response: str
