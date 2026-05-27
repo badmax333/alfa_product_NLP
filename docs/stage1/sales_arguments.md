@@ -10,9 +10,9 @@
 | `push` | Push-уведомление / SMS | digital | Короткое сообщение, ~100 символов |
 | `voice` | Голосовой скрипт | voice | Скрипт для оператора: открытие → аргумент → возражение → закрытие |
 
-## Mock-аргументы (текущая демо-реализация)
+## Демо-примеры аргументов
 
-Три готовых примера в `config/sales_arguments.py` → `MOCK_SALES_ARGUMENTS`:
+Три готовых примера остаются в `config/sales_arguments.py` → `MOCK_SALES_ARGUMENTS` для совместимости и локальных сценариев:
 
 | ID | Тип | Портрет | Продукт |
 |---|---|---|---|
@@ -22,18 +22,18 @@
 
 Каждый аргумент содержит поля: `headline`, `body`, `cta`, `note` (пояснение, почему такой текст).
 
-Логика выбора mock-аргумента в UI: берётся аргумент, соответствующий выбранному типу взаимодействия (независимо от реального портрета клиента — это особенность демо).
+В UI эти примеры больше не выбираются как основной результат: Tab 2 генерирует персонализированный аргумент через Mistral.
 
-## Генерация через LLM (планируется)
+## Генерация через LLM
 
-> **Статус:** Текущий шаблон промпта является предварительным и будет заменён финальной версией.
+> **Статус:** Реализовано через `services/sales_argument_generator.py` и `/api/v1/sales-args/generate`.
 
 ### Где лежат промпты
 
 ```
 prompts/
-├── stage1_sales_argument.j2        ← шаблон для генерации аргумента (предварительный)
-└── stage1_metrics_generation.j2    ← шаблон для генерации метрик (используется в проде)
+├── stage1_sales_argument.j2        ← шаблон для генерации аргумента
+└── stage1_metrics_generation.j2    ← шаблон для генерации метрик
 ```
 
 ### Что передаётся в LLM
@@ -79,14 +79,15 @@ LLM #2 (Compliance) → проверка:
 
 ## Промпт в UI (Tab 2)
 
-В интерфейсе Tab 2 отображается **реальный рендеренный Jinja2-промпт**.
+В интерфейсе Tab 2 отображается **реальный рендеренный Jinja2-промпт**, а кнопка генерации отправляет его в Mistral.
 
 ### Как это работает
 
-1. При выборе типа взаимодействия JS делает POST-запрос на `/api/v1/sales-args/render-prompt`
-2. Backend вызывает `services/sales_arg_renderer.py` → `render_sales_arg_prompt()`
-3. Функция загружает `prompts/stage1_sales_argument.j2` через Jinja2 и подставляет данные клиента
-4. Рендеренный промпт возвращается и отображается в блоке «Промпт для LLM»
+1. При выборе типа взаимодействия JS делает POST-запрос на `/api/v1/sales-args/render-prompt`.
+2. Backend вызывает `services/sales_arg_renderer.py` → `render_sales_arg_prompt()`.
+3. Функция загружает `prompts/stage1_sales_argument.j2` через Jinja2 и подставляет данные клиента.
+4. По кнопке генерации JS делает POST-запрос на `/api/v1/sales-args/generate`.
+5. Backend вызывает `services/sales_argument_generator.py` → `generate_sales_argument()`, парсит JSON из ответа Mistral и возвращает карточку аргумента.
 
 ```python
 # services/sales_arg_renderer.py
@@ -106,4 +107,21 @@ POST /api/v1/sales-args/render-prompt
   "client_features": {"smb_type_code": "2", ...}
 }
 → {"rendered_prompt": "...полный текст промпта..."}
+```
+
+```http
+POST /api/v1/sales-args/generate
+{
+  "classification": {"predicted_class": "P1", ...},
+  "interaction_type": "banner",
+  "client_features": {"smb_type_code": "2", ...}
+}
+→ {
+  "id": "llm_banner_p1",
+  "headline": "...",
+  "body": "...",
+  "cta": "...",
+  "rendered_prompt": "...",
+  "raw_llm_response": "..."
+}
 ```

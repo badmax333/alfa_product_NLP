@@ -82,7 +82,7 @@ class SalesArgumentItem(BaseModel):
     channel: str
     portrait: str
     portrait_label: str
-    product_ame: int
+    product_ame: int | None
     product_name: str
     headline: str
     body: str
@@ -112,9 +112,18 @@ class RenderSalesArgPromptRequest(BaseModel):
     client_features: dict[str, Any] = Field(default_factory=dict)
 
 
+class GenerateSalesArgumentRequest(RenderSalesArgPromptRequest):
+    pass
+
+
+class SalesArgumentResponse(SalesArgumentItem):
+    rendered_prompt: str
+    raw_llm_response: str
+
+
 class RenderMetricsPromptRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
-    sales_argument: dict[str, Any] = Field(description="Выбранный mock sales-аргумент")
+    sales_argument: dict[str, Any] = Field(description="Выбранный sales-аргумент")
     channel: str = Field(description="'digital' или 'voice'")
     client_features: dict[str, Any] = Field(default_factory=dict)
 
@@ -129,7 +138,7 @@ class RenderedPromptResponse(BaseModel):
 
 class GenerateMetricsRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
-    sales_argument: dict[str, Any] = Field(description="Выбранный mock sales-аргумент")
+    sales_argument: dict[str, Any] = Field(description="Выбранный sales-аргумент")
     channel: str = Field(description="'digital' или 'voice'")
     client_features: dict[str, Any] = Field(
         default_factory=dict,

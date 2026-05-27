@@ -7,9 +7,9 @@ let activePresetId = null;
 let classificationResult = null;   // результат /api/v1/predict
 let clientFeatures = {};            // последние значения формы
 
-let salesArgsConfig = null;         // interaction types + mock arguments
+let salesArgsConfig = null;         // interaction types + examples
 let selectedInteractionType = null; // "banner" | "push" | "voice"
-let selectedArgument = null;        // выбранный mock аргумент
+let selectedArgument = null;        // сгенерированный sales-аргумент
 
 let selectedChannel = "digital";    // "digital" | "voice"
 let selectedMethod = "llm";         // "llm" | "random"
@@ -256,7 +256,7 @@ document.getElementById("predict-form").addEventListener("submit", async (e) => 
 });
 
 // ============================================================
-// TAB 2 — Sales argument (mock)
+// TAB 2 — Sales argument
 // ============================================================
 async function loadSalesArgsConfig() {
   if (salesArgsConfig) return;
@@ -333,9 +333,16 @@ function renderInteractionTypeButtons() {
 
 function selectInteractionType(typeId) {
   selectedInteractionType = typeId;
+  selectedArgument = null;
   document.querySelectorAll(".itype-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.itype === typeId);
   });
+  document.getElementById("argument-content").classList.add("hidden");
+  document.getElementById("to-metrics-bar").classList.add("hidden");
+  document.getElementById("argument-placeholder").classList.remove("hidden");
+  document.getElementById("argument-placeholder").textContent =
+    "Нажмите «Сгенерировать аргумент», чтобы получить персонализированный текст";
+  document.getElementById("tab-btn-metrics").classList.remove("done");
   updateSalesPrompt();
 }
 
@@ -362,19 +369,50 @@ async function updateSalesPrompt() {
   }
 }
 
-function selectMockArgument() {
-  if (!salesArgsConfig || !selectedInteractionType) return;
-  const mockArg = salesArgsConfig.mock_arguments.find(
-    (a) => a.interaction_type === selectedInteractionType
-  );
-  if (!mockArg) {
-    document.getElementById("argument-placeholder").textContent = "Нет примера для этого типа";
-    return;
+async function generateSalesArgument() {
+  if (!classificationResult || !selectedInteractionType) return;
+
+  const btn = document.getElementById("btn-get-argument");
+  const placeholder = document.getElementById("argument-placeholder");
+  btn.disabled = true;
+  btn.textContent = "Генерируем…";
+  placeholder.classList.remove("hidden");
+  placeholder.textContent = "Отправляем запрос в Mistral…";
+  document.getElementById("argument-content").classList.add("hidden");
+  document.getElementById("to-metrics-bar").classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/v1/sales-args/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: classificationResult,
+        interaction_type: selectedInteractionType,
+        client_features: clientFeatures,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Ошибка ${res.status}`);
+    }
+
+    selectedArgument = await res.json();
+    renderArgumentCard(selectedArgument);
+
+    if (selectedArgument.rendered_prompt) {
+      document.getElementById("sales-prompt-text").textContent = selectedArgument.rendered_prompt;
+    }
+
+    document.getElementById("to-metrics-bar").classList.remove("hidden");
+    document.getElementById("tab-btn-metrics").classList.add("done");
+  } catch (err) {
+    placeholder.classList.remove("hidden");
+    placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка генерации аргумента"}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Сгенерировать аргумент";
   }
-  selectedArgument = mockArg;
-  renderArgumentCard(mockArg);
-  document.getElementById("to-metrics-bar").classList.remove("hidden");
-  document.getElementById("tab-btn-metrics").classList.add("done");
 }
 
 function renderArgumentCard(arg) {

@@ -25,6 +25,7 @@ from config.stage1 import DEFAULT_FEATURES, DEMO_PRESETS, EDITABLE_FEATURES
 from models.classifier import predict
 from services.metrics_generator import generate_metrics
 from services.random_metrics_generator import generate_metrics_random
+from services.sales_argument_generator import generate_sales_argument
 
 
 def generate_random_client_features() -> dict[str, Any]:
@@ -80,9 +81,12 @@ def run_single(
     if channel is None:
         channel = itype_meta["channel"] if itype_meta else "digital"
 
-    sales_argument = MOCK_ARGUMENTS_BY_TYPE.get(interaction_type, MOCK_SALES_ARGUMENTS[0])
-
     if method == "llm":
+        sales_argument = generate_sales_argument(
+            classification=classification,
+            interaction_type=interaction_type,
+            client_features=client_features,
+        )
         metrics_result = generate_metrics(
             classification=classification,
             sales_argument=sales_argument,
@@ -90,6 +94,7 @@ def run_single(
             client_features=client_features,
         )
     else:
+        sales_argument = MOCK_ARGUMENTS_BY_TYPE.get(interaction_type, MOCK_SALES_ARGUMENTS[0])
         metrics_result = generate_metrics_random(
             classification=classification,
             sales_argument=sales_argument,

@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from api.schemas import (
     ConfigResponse,
+    GenerateSalesArgumentRequest,
     GenerateMetricsRequest,
     InteractionTypeItem,
     MetricValueItem,
@@ -23,6 +24,7 @@ from api.schemas import (
     RenderedPromptResponse,
     RenderMetricsPromptRequest,
     RenderSalesArgPromptRequest,
+    SalesArgumentResponse,
     SalesArgumentItem,
     SalesArgumentsConfig,
     ShapFeatureItem,
@@ -39,6 +41,7 @@ from config.stage1 import (
 from models.classifier import predict
 from services.metrics_generator import generate_metrics, render_metrics_prompt
 from services.random_metrics_generator import generate_metrics_random
+from services.sales_argument_generator import generate_sales_argument
 from services.sales_arg_renderer import render_sales_arg_prompt
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -107,6 +110,25 @@ async def render_sales_arg_prompt_endpoint(body: RenderSalesArgPromptRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта: {e}")
     return RenderedPromptResponse(rendered_prompt=prompt)
+
+
+@app.post("/api/v1/sales-args/generate", response_model=SalesArgumentResponse)
+async def generate_sales_arg_endpoint(body: GenerateSalesArgumentRequest):
+    """Сгенерировать персонализированный sales-аргумент через Mistral."""
+    try:
+        result = generate_sales_argument(
+            classification=body.classification,
+            interaction_type=body.interaction_type,
+            client_features=body.client_features,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации sales-аргумента: {e}")
+
+    return SalesArgumentResponse(**result)
 
 
 @app.post("/api/v1/metrics/render-prompt", response_model=RenderedPromptResponse)
