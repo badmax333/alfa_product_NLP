@@ -24,6 +24,7 @@ from api.schemas import (
     PropensityProductItem,
     PropensityScoreRequest,
     PropensityScoreResponse,
+    RenderPropensityFeaturePromptRequest,
     RenderedPromptResponse,
     RenderMetricsPromptRequest,
     RenderSalesArgPromptRequest,
@@ -33,6 +34,7 @@ from api.schemas import (
     ShapFeatureItem,
 )
 from config.sales_arguments import INTERACTION_TYPES, MOCK_SALES_ARGUMENTS
+from config.propensity import PROPENSITY_FEATURE_LABELS
 from config.stage1 import (
     CLASS_DESCRIPTIONS,
     DEFAULT_FEATURES,
@@ -43,6 +45,10 @@ from config.stage1 import (
 )
 from models.classifier import predict
 from services.metrics_generator import generate_metrics, render_metrics_prompt
+from services.propensity_feature_generator import (
+    generate_propensity_features,
+    render_propensity_feature_prompt,
+)
 from services.propensity_scorer import score_propensity
 from services.random_metrics_generator import generate_metrics_random
 from services.sales_argument_generator import generate_sales_argument
@@ -72,7 +78,7 @@ async def get_config():
     presets = [PresetInfo(**p) for p in DEMO_PRESETS]
     return ConfigResponse(
         editable_features=EDITABLE_FEATURES,
-        feature_labels=FEATURE_LABELS,
+        feature_labels={**PROPENSITY_FEATURE_LABELS, **FEATURE_LABELS},
         field_options=FIELD_OPTIONS,
         presets=presets,
         default_overrides=default_overrides,
@@ -190,16 +196,42 @@ async def generate_metrics_endpoint(body: GenerateMetricsRequest):
     )
 
 
+@app.post("/api/v1/propensity/render-feature-prompt", response_model=RenderedPromptResponse)
+async def render_propensity_feature_prompt_endpoint(body: RenderPropensityFeaturePromptRequest):
+    """Рендерить промпт генерации признаков для Stage 2 без вызова Mistral."""
+    try:
+        prompt = render_propensity_feature_prompt(
+            classification=body.classification,
+            client_features=body.client_features,
+            metrics_result=body.metrics_result,
+            sales_argument=body.sales_argument,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта признаков: {e}")
+    return RenderedPromptResponse(rendered_prompt=prompt)
+
+
 @app.post("/api/v1/propensity/score", response_model=PropensityScoreResponse)
 async def score_propensity_endpoint(body: PropensityScoreRequest):
-    """Оценить склонность клиента к продуктам после расчета метрик взаимодействия."""
+    """Сгенерировать признаки клиента и оценить склонность к продуктам."""
     try:
+        feature_generation = generate_propensity_features(
+            classification=body.classification,
+            client_features=body.client_features,
+            metrics_result=body.metrics_result,
+            sales_argument=body.sales_argument,
+        )
         result = score_propensity(
             classification=body.classification,
             client_features=body.client_features,
             metrics_result=body.metrics_result,
             top_k=body.top_k,
+            generated_features=feature_generation["features"],
         )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка скоринга склонности: {e}")
 
@@ -207,6 +239,12 @@ async def score_propensity_endpoint(body: PropensityScoreRequest):
         portrait=result["portrait"],
         portrait_label=result["portrait_label"],
         model_source=result["model_source"],
+        feature_source=result["feature_source"],
+        generated_features=result["scoring_features"],
+        feature_generation_reasoning=feature_generation["reasoning_summary"],
+        feature_generation_prompt=feature_generation["rendered_prompt"],
+        feature_generation_system_prompt=feature_generation["system_prompt"],
+        feature_generation_raw_response=feature_generation["raw_llm_response"],
         interaction_interest_score=result["interaction_interest_score"],
         top_products=[PropensityProductItem(**item) for item in result["top_products"]],
         all_products=[PropensityProductItem(**item) for item in result["all_products"]],

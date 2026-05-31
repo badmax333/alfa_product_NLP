@@ -1,4 +1,16 @@
 {
+  "product_ids": [
+    "zpp",
+    "alfa_payments",
+    "nachalo",
+    "trade_acquiring",
+    "internet_acquiring",
+    "tax_jar",
+    "savings",
+    "accounting",
+    "business_card",
+    "mobile_app"
+  ],
   "cat_features": [
     "product_id",
     "priority_segment",
@@ -37,11 +49,21 @@
     "impnt",
     "to_activate",
     "complexity",
-    "get_scores"
+    "get_scores",
+    "abm_entered",
+    "mobile_app_entered",
+    "plastic_card_issued",
+    "cashback_selected"
+  ],
+  "binary_features": [
+    "abm_entered",
+    "mobile_app_entered",
+    "plastic_card_issued",
+    "cashback_selected"
   ],
   "target": "propensity_label",
   "metrics": {
-    "roc_auc": 0.9840804341867898,
-    "pr_auc": 0.9881347942554627
+    "roc_auc": 0.9908472373007947,
+    "pr_auc": 0.9917247312142314
   }
 }

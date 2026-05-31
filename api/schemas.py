@@ -199,13 +199,26 @@ class PropensityScoreRequest(BaseModel):
     client_features: dict[str, Any] = Field(default_factory=dict)
     metrics_result: dict[str, Any] = Field(description="Результат /api/v1/metrics/generate")
     sales_argument: dict[str, Any] = Field(default_factory=dict)
-    top_k: int = Field(default=3, ge=1, le=8)
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+class RenderPropensityFeaturePromptRequest(BaseModel):
+    classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
+    client_features: dict[str, Any] = Field(default_factory=dict)
+    metrics_result: dict[str, Any] = Field(description="Результат /api/v1/metrics/generate")
+    sales_argument: dict[str, Any] = Field(default_factory=dict)
 
 
 class PropensityScoreResponse(BaseModel):
     portrait: str
     portrait_label: str
     model_source: str
+    feature_source: str
+    generated_features: dict[str, Any]
+    feature_generation_reasoning: str
+    feature_generation_prompt: str
+    feature_generation_system_prompt: str
+    feature_generation_raw_response: str
     interaction_interest_score: float | None
     top_products: list[PropensityProductItem]
     all_products: list[PropensityProductItem]
