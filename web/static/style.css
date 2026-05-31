@@ -924,6 +924,35 @@ body {
 }
 
 /* ============================================================
+   Channel info (derived, not selectable)
+   ============================================================ */
+
+.channel-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.85rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.channel-info.digital {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.channel-info.voice {
+  background: #fdf4ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+/* ============================================================
    Tab 4: Product propensity
    ============================================================ */
 
