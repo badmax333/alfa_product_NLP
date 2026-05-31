@@ -10,7 +10,7 @@ _client: Mistral | None = None
 
 # --- Параметры повтора при rate-limit ---
 _MAX_RETRIES = 6        # максимум попыток
-_BACKOFF_INITIAL = 2.0  # начальная пауза, секунды
+_BACKOFF_INITIAL = 10.0  # начальная пауза, секунды
 _BACKOFF_MAX = 64.0     # максимальная пауза, секунды
 
 
