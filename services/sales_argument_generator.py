@@ -6,7 +6,7 @@ from typing import Any
 
 from config.metrics import PORTRAIT_BEHAVIORAL_PROFILES
 from config.sales_arguments import INTERACTION_TYPES
-from services.llm import MISTRAL_MODEL, get_mistral_client
+from services.llm import call_mistral
 from services.sales_arg_renderer import render_sales_arg_prompt, render_stage2_sales_arg_prompt
 
 _INTERACTION_TYPES_BY_ID = {t["id"]: t for t in INTERACTION_TYPES}
@@ -32,18 +32,6 @@ def _clean_text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
-
-
-def _call_mistral(prompt: str, temperature: float = 0.7, max_tokens: int = 1200) -> str:
-    client = get_mistral_client()
-    response = client.chat.complete(
-        model=MISTRAL_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    message = response.choices[0].message
-    return str(message.content) if message and message.content else ""
 
 
 def _build_argument_fields(
@@ -86,7 +74,7 @@ def generate_sales_argument(
         interaction_type=interaction_type,
         client_features=client_features,
     )
-    raw_text = _call_mistral(rendered_prompt)
+    raw_text = call_mistral(rendered_prompt)
     parsed = _extract_json(raw_text)
 
     portrait_id = classification["predicted_class"]
@@ -147,7 +135,7 @@ def generate_stage2_argument(
         stage1_argument=stage1_argument,
         stage1_metrics=stage1_metrics,
     )
-    raw_text = _call_mistral(rendered_prompt, max_tokens=1400)
+    raw_text = call_mistral(rendered_prompt, max_tokens=1400)
     parsed = _extract_json(raw_text)
 
     portrait_id = classification["predicted_class"]
