@@ -14,6 +14,7 @@ from api.schemas import (
     ConfigResponse,
     GenerateSalesArgumentRequest,
     GenerateMetricsRequest,
+    GenerateStage2SalesArgumentRequest,
     InteractionTypeItem,
     MetricValueItem,
     MetricsResponse,
@@ -27,10 +28,12 @@ from api.schemas import (
     RenderedPromptResponse,
     RenderMetricsPromptRequest,
     RenderSalesArgPromptRequest,
+    RenderStage2SalesArgPromptRequest,
     SalesArgumentResponse,
     SalesArgumentItem,
     SalesArgumentsConfig,
     ShapFeatureItem,
+    Stage2SalesArgumentResponse,
 )
 from config.sales_arguments import INTERACTION_TYPES, MOCK_SALES_ARGUMENTS
 from config.stage1 import (
@@ -45,8 +48,8 @@ from models.classifier import predict
 from services.metrics_generator import generate_metrics, render_metrics_prompt
 from services.propensity_scorer import score_propensity
 from services.random_metrics_generator import generate_metrics_random
-from services.sales_argument_generator import generate_sales_argument
-from services.sales_arg_renderer import render_sales_arg_prompt
+from services.sales_argument_generator import generate_sales_argument, generate_stage2_argument
+from services.sales_arg_renderer import render_sales_arg_prompt, render_stage2_sales_arg_prompt
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
@@ -211,3 +214,42 @@ async def score_propensity_endpoint(body: PropensityScoreRequest):
         top_products=[PropensityProductItem(**item) for item in result["top_products"]],
         all_products=[PropensityProductItem(**item) for item in result["all_products"]],
     )
+
+
+@app.post("/api/v1/sales-args/render-prompt-stage2", response_model=RenderedPromptResponse)
+async def render_stage2_sales_arg_prompt_endpoint(body: RenderStage2SalesArgPromptRequest):
+    """Рендерить шаблон Stage 2 sales-аргумента без вызова Mistral (для превью в UI)."""
+    try:
+        prompt = render_stage2_sales_arg_prompt(
+            classification=body.classification,
+            interaction_type=body.interaction_type,
+            client_features=body.client_features,
+            propensity_product=body.propensity_product,
+            stage1_argument=body.stage1_argument,
+            stage1_metrics=body.stage1_metrics,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта Stage 2: {e}")
+    return RenderedPromptResponse(rendered_prompt=prompt)
+
+
+@app.post("/api/v1/sales-args/generate-stage2", response_model=Stage2SalesArgumentResponse)
+async def generate_stage2_sales_arg_endpoint(body: GenerateStage2SalesArgumentRequest):
+    """Сгенерировать персонализированный Stage 2 sales-аргумент через Mistral."""
+    try:
+        result = generate_stage2_argument(
+            classification=body.classification,
+            interaction_type=body.interaction_type,
+            client_features=body.client_features,
+            propensity_product=body.propensity_product,
+            stage1_argument=body.stage1_argument,
+            stage1_metrics=body.stage1_metrics,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации Stage 2 аргумента: {e}")
+
+    return Stage2SalesArgumentResponse(**result)
