@@ -7,7 +7,10 @@ from typing import Any
 from config.metrics import PORTRAIT_BEHAVIORAL_PROFILES
 from config.sales_arguments import INTERACTION_TYPES
 from services.llm import call_mistral
-from services.sales_arg_renderer import render_sales_arg_prompt, render_stage2_sales_arg_prompt
+from services.sales_arg_renderer import (
+    render_sales_arg_prompt,
+    render_stage2_sales_arg_prompt,
+)
 
 _INTERACTION_TYPES_BY_ID = {t["id"]: t for t in INTERACTION_TYPES}
 
@@ -15,6 +18,7 @@ _INTERACTION_TYPES_BY_ID = {t["id"]: t for t in INTERACTION_TYPES}
 # ---------------------------------------------------------------------------
 # Shared private helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_json(text: str) -> dict[str, Any]:
     """Извлекает JSON из ответа LLM, даже если модель вернула markdown-блок."""
@@ -59,6 +63,7 @@ def _build_argument_fields(
 # Public: Stage 1
 # ---------------------------------------------------------------------------
 
+
 def generate_sales_argument(
     classification: dict[str, Any],
     interaction_type: str,
@@ -81,7 +86,9 @@ def generate_sales_argument(
     profile = PORTRAIT_BEHAVIORAL_PROFILES.get(portrait_id, {})
     product = classification.get("recommended_product", {})
 
-    result = _build_argument_fields(parsed, interaction_type, portrait_id, product, itype_meta, profile)
+    result = _build_argument_fields(
+        parsed, interaction_type, portrait_id, product, itype_meta, profile
+    )
     result["id"] = f"llm_{interaction_type}_{portrait_id.lower()}"
     result["note"] = (
         "Сгенерировано Mistral на основе портрета клиента, рекомендованного продукта, "
@@ -95,6 +102,7 @@ def generate_sales_argument(
 # ---------------------------------------------------------------------------
 # Public: Stage 2
 # ---------------------------------------------------------------------------
+
 
 def generate_stage2_argument(
     classification: dict[str, Any],
@@ -145,12 +153,18 @@ def generate_stage2_argument(
         "name": propensity_product.get("product_name", ""),
     }
 
-    result = _build_argument_fields(parsed, interaction_type, portrait_id, product, itype_meta, profile)
-    result["id"] = f"llm_s2_{interaction_type}_{portrait_id.lower()}_{propensity_product.get('product_id', '')}"
+    result = _build_argument_fields(
+        parsed, interaction_type, portrait_id, product, itype_meta, profile
+    )
+    result["id"] = (
+        f"llm_s2_{interaction_type}_{portrait_id.lower()}_{propensity_product.get('product_id', '')}"
+    )
     result["propensity_score"] = propensity_product.get("propensity_score")
 
     interest = (stage1_metrics or {}).get("interest_score")
-    interest_str = f", интерес к Ступени 1: {interest:.2f}" if interest is not None else ""
+    interest_str = (
+        f", интерес к Ступени 1: {interest:.2f}" if interest is not None else ""
+    )
     result["note"] = (
         f"Stage 2. Продукт: {propensity_product.get('product_name', '')} "
         f"(склонность: {propensity_product.get('propensity_score', '—')}{interest_str}). "

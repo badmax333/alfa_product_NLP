@@ -2,10 +2,7 @@
 
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-
-load_dotenv()
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -48,8 +45,17 @@ from models.classifier import predict
 from services.metrics_generator import generate_metrics, render_metrics_prompt
 from services.propensity_scorer import score_propensity
 from services.random_metrics_generator import generate_metrics_random
-from services.sales_argument_generator import generate_sales_argument, generate_stage2_argument
-from services.sales_arg_renderer import render_sales_arg_prompt, render_stage2_sales_arg_prompt
+from services.sales_argument_generator import (
+    generate_sales_argument,
+    generate_stage2_argument,
+)
+from services.sales_arg_renderer import (
+    render_sales_arg_prompt,
+    render_stage2_sales_arg_prompt,
+)
+from dotenv import load_dotenv
+
+load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
@@ -92,7 +98,9 @@ async def predict_segment(body: PredictRequest):
         confidence=result["confidence"],
         probabilities=result["probabilities"],
         recommended_product=ProductRecommendation(**result["recommended_product"]),
-        top5_feature_importance=[ShapFeatureItem(**item) for item in result["top5_feature_importance"]],
+        top5_feature_importance=[
+            ShapFeatureItem(**item) for item in result["top5_feature_importance"]
+        ],
     )
 
 
@@ -133,7 +141,9 @@ async def generate_sales_arg_endpoint(body: GenerateSalesArgumentRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка генерации sales-аргумента: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка генерации sales-аргумента: {e}"
+        )
 
     return SalesArgumentResponse(**result)
 
@@ -142,7 +152,9 @@ async def generate_sales_arg_endpoint(body: GenerateSalesArgumentRequest):
 async def render_metrics_prompt_endpoint(body: RenderMetricsPromptRequest):
     """Рендерить промпт для генерации метрик без вызова Mistral (для превью в UI)."""
     if body.channel not in ("digital", "voice"):
-        raise HTTPException(status_code=422, detail="channel должен быть 'digital' или 'voice'")
+        raise HTTPException(
+            status_code=422, detail="channel должен быть 'digital' или 'voice'"
+        )
     try:
         prompt = render_metrics_prompt(
             classification=body.classification,
@@ -159,9 +171,13 @@ async def render_metrics_prompt_endpoint(body: RenderMetricsPromptRequest):
 async def generate_metrics_endpoint(body: GenerateMetricsRequest):
     """Сгенерировать синтетические метрики взаимодействия (LLM или случайно)."""
     if body.channel not in ("digital", "voice"):
-        raise HTTPException(status_code=422, detail="channel должен быть 'digital' или 'voice'")
+        raise HTTPException(
+            status_code=422, detail="channel должен быть 'digital' или 'voice'"
+        )
     if body.method not in ("llm", "random"):
-        raise HTTPException(status_code=422, detail="method должен быть 'llm' или 'random'")
+        raise HTTPException(
+            status_code=422, detail="method должен быть 'llm' или 'random'"
+        )
     try:
         if body.method == "random":
             result = generate_metrics_random(
@@ -216,8 +232,12 @@ async def score_propensity_endpoint(body: PropensityScoreRequest):
     )
 
 
-@app.post("/api/v1/sales-args/render-prompt-stage2", response_model=RenderedPromptResponse)
-async def render_stage2_sales_arg_prompt_endpoint(body: RenderStage2SalesArgPromptRequest):
+@app.post(
+    "/api/v1/sales-args/render-prompt-stage2", response_model=RenderedPromptResponse
+)
+async def render_stage2_sales_arg_prompt_endpoint(
+    body: RenderStage2SalesArgPromptRequest,
+):
     """Рендерить шаблон Stage 2 sales-аргумента без вызова Mistral (для превью в UI)."""
     try:
         prompt = render_stage2_sales_arg_prompt(
@@ -229,11 +249,15 @@ async def render_stage2_sales_arg_prompt_endpoint(body: RenderStage2SalesArgProm
             stage1_metrics=body.stage1_metrics,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта Stage 2: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка рендеринга промпта Stage 2: {e}"
+        )
     return RenderedPromptResponse(rendered_prompt=prompt)
 
 
-@app.post("/api/v1/sales-args/generate-stage2", response_model=Stage2SalesArgumentResponse)
+@app.post(
+    "/api/v1/sales-args/generate-stage2", response_model=Stage2SalesArgumentResponse
+)
 async def generate_stage2_sales_arg_endpoint(body: GenerateStage2SalesArgumentRequest):
     """Сгенерировать персонализированный Stage 2 sales-аргумент через Mistral."""
     try:
@@ -250,6 +274,8 @@ async def generate_stage2_sales_arg_endpoint(body: GenerateStage2SalesArgumentRe
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка генерации Stage 2 аргумента: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка генерации Stage 2 аргумента: {e}"
+        )
 
     return Stage2SalesArgumentResponse(**result)

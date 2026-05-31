@@ -9,9 +9,9 @@ from mistralai.client import Mistral
 _client: Mistral | None = None
 
 # --- Параметры повтора при rate-limit ---
-_MAX_RETRIES = 6        # максимум попыток
+_MAX_RETRIES = 6  # максимум попыток
 _BACKOFF_INITIAL = 10.0  # начальная пауза, секунды
-_BACKOFF_MAX = 64.0     # максимальная пауза, секунды
+_BACKOFF_MAX = 64.0  # максимальная пауза, секунды
 
 
 def get_mistral_client() -> Mistral:
@@ -24,9 +24,6 @@ def get_mistral_client() -> Mistral:
             )
         _client = Mistral(api_key=api_key)
     return _client
-
-
-MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
 
 
 def _is_rate_limit(exc: Exception) -> bool:
@@ -74,9 +71,10 @@ def call_mistral(
     backoff = _BACKOFF_INITIAL
 
     for attempt in range(_MAX_RETRIES):
+        model = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
         try:
             response = client.chat.complete(
-                model=MISTRAL_MODEL,
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
                 max_tokens=max_tokens,

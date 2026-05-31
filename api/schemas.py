@@ -76,6 +76,7 @@ class ConfigResponse(BaseModel):
 # Sales arguments
 # ---------------------------------------------------------------------------
 
+
 class SalesArgumentItem(BaseModel):
     id: str
     interaction_type: str
@@ -105,6 +106,7 @@ class SalesArgumentsConfig(BaseModel):
 # ---------------------------------------------------------------------------
 # Prompt rendering (для отображения реальных промптов в UI)
 # ---------------------------------------------------------------------------
+
 
 class RenderSalesArgPromptRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
@@ -136,6 +138,7 @@ class RenderedPromptResponse(BaseModel):
 # Metrics generation
 # ---------------------------------------------------------------------------
 
+
 class GenerateMetricsRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
     sales_argument: dict[str, Any] = Field(description="Выбранный sales-аргумент")
@@ -144,7 +147,9 @@ class GenerateMetricsRequest(BaseModel):
         default_factory=dict,
         description="Признаки клиента из формы (8 редактируемых полей)",
     )
-    method: str = Field(default="llm", description="'llm' — через Mistral, 'random' — локально")
+    method: str = Field(
+        default="llm", description="'llm' — через Mistral, 'random' — локально"
+    )
 
 
 class MetricValueItem(BaseModel):
@@ -172,6 +177,7 @@ class MetricsResponse(BaseModel):
 # Product propensity scoring (Stage 2)
 # ---------------------------------------------------------------------------
 
+
 class PropensityFactorItem(BaseModel):
     feature: str
     label: str
@@ -197,7 +203,9 @@ class PropensityProductItem(BaseModel):
 class PropensityScoreRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
     client_features: dict[str, Any] = Field(default_factory=dict)
-    metrics_result: dict[str, Any] = Field(description="Результат /api/v1/metrics/generate")
+    metrics_result: dict[str, Any] = Field(
+        description="Результат /api/v1/metrics/generate"
+    )
     sales_argument: dict[str, Any] = Field(default_factory=dict)
     top_k: int = Field(default=3, ge=1, le=8)
 
@@ -214,6 +222,7 @@ class PropensityScoreResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Stage 2 sales argument generation
 # ---------------------------------------------------------------------------
+
 
 class RenderStage2SalesArgPromptRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")

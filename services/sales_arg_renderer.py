@@ -26,7 +26,9 @@ def _base_render_context(
     channel = itype_meta.get("channel", "digital")
     return {
         "portrait_id": portrait_id,
-        "portrait_name": profile.get("name", classification.get("class_description", "")),
+        "portrait_name": profile.get(
+            "name", classification.get("class_description", "")
+        ),
         "typical_behavior": profile.get("typical_behavior", ""),
         "negative_triggers": profile.get("negative_triggers", ""),
         "client_features": client_features,

@@ -28,7 +28,10 @@ from models.classifier import predict
 from services.metrics_generator import generate_metrics
 from services.propensity_scorer import score_propensity
 from services.random_metrics_generator import generate_metrics_random
-from services.sales_argument_generator import generate_sales_argument, generate_stage2_argument
+from services.sales_argument_generator import (
+    generate_sales_argument,
+    generate_stage2_argument,
+)
 
 # ---------------------------------------------------------------------------
 # Обезличенные (generic) шаблоны аргументов — без персонализации по портрету
@@ -122,6 +125,7 @@ def _generic_s2_argument(
 # Вспомогательные функции
 # ---------------------------------------------------------------------------
 
+
 def _channel_from_itype(itype: str) -> str:
     for t in INTERACTION_TYPES:
         if t["id"] == itype:
@@ -131,7 +135,9 @@ def _channel_from_itype(itype: str) -> str:
 
 def _get_conversion(metrics_result: dict[str, Any], channel: str) -> bool:
     """Извлекает бинарный факт подключения продукта из результата метрик."""
-    key = "product_activated" if channel == "digital" else "product_connected_after_call"
+    key = (
+        "product_activated" if channel == "digital" else "product_connected_after_call"
+    )
     for m in metrics_result.get("metrics", []):
         if m["name"] == key:
             return bool(m["value"])
@@ -156,6 +162,7 @@ def generate_random_client_features() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Основной пайплайн
 # ---------------------------------------------------------------------------
+
 
 def full_run_single(
     client_features: dict[str, Any] | None = None,
@@ -209,7 +216,9 @@ def full_run_single(
         s1_argument = _GENERIC_S1[s1_interaction_type]
 
     # Stage 1: metrics
-    metrics_fn = generate_metrics if metrics_method == "llm" else generate_metrics_random
+    metrics_fn = (
+        generate_metrics if metrics_method == "llm" else generate_metrics_random
+    )
     s1_metrics = metrics_fn(
         classification=classification,
         sales_argument=s1_argument,

@@ -53,7 +53,8 @@ def render_metrics_prompt(
         channel_label=CHANNEL_LABELS.get(channel, channel),
         interaction_type=sales_argument.get("interaction_type", ""),
         interaction_type_label=INTERACTION_TYPE_MAP.get(
-            sales_argument.get("interaction_type", ""), sales_argument.get("interaction_type", "")
+            sales_argument.get("interaction_type", ""),
+            sales_argument.get("interaction_type", ""),
         ),
         sales_argument=sales_argument,
         metrics_by_level=metrics_by_level,

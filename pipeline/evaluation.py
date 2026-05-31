@@ -35,6 +35,7 @@ from pipeline.full_pipeline import full_run_single, generate_random_client_featu
 # Вспомогательные функции для статистики
 # ---------------------------------------------------------------------------
 
+
 def _mean(values: list[float]) -> float:
     return round(statistics.mean(values), 4) if values else 0.0
 
@@ -98,7 +99,8 @@ def _compute_stats(personalized: list[dict], generic: list[dict]) -> dict[str, A
             "s2_conversion": round(_rate(p_s2_conv) - _rate(g_s2_conv), 4),
         },
         "llm_fallback_count": sum(
-            1 for r in personalized
+            1
+            for r in personalized
             if r.get("llm_errors", {}).get("s1") or r.get("llm_errors", {}).get("s2")
         ),
     }
@@ -107,6 +109,7 @@ def _compute_stats(personalized: list[dict], generic: list[dict]) -> dict[str, A
 # ---------------------------------------------------------------------------
 # Запуск эксперимента
 # ---------------------------------------------------------------------------
+
 
 def run_experiment(
     n: int,
@@ -167,6 +170,7 @@ def run_experiment(
 # Вывод отчёта
 # ---------------------------------------------------------------------------
 
+
 def _print_report(stats: dict[str, Any]) -> None:
     n = stats["n"]
     p = stats["personalized"]
@@ -179,42 +183,54 @@ def _print_report(stats: dict[str, Any]) -> None:
     sep = "-" * 72
 
     print(f"\n{bar}")
-    print(f"  РЕЗУЛЬТАТЫ  |  n={n}  |  оценка: LLM (Mistral)" +
-          (f"  |  llm_fallbacks={fb}" if fb else ""))
+    print(
+        f"  РЕЗУЛЬТАТЫ  |  n={n}  |  оценка: LLM (Mistral)"
+        + (f"  |  llm_fallbacks={fb}" if fb else "")
+    )
     print(bar)
     print(row.format("Метрика", "Персонализированные", "Обезличенные", "Δ"))
     print(sep)
-    print(row.format(
-        "S1 interest (mean ± std)",
-        f"{p['s1_interest']['mean']:.3f} ±{p['s1_interest']['std']:.3f}",
-        f"{g['s1_interest']['mean']:.3f} ±{g['s1_interest']['std']:.3f}",
-        f"{d['s1_interest']:+.3f}",
-    ))
-    print(row.format(
-        "S2 interest (mean ± std)",
-        f"{p['s2_interest']['mean']:.3f} ±{p['s2_interest']['std']:.3f}",
-        f"{g['s2_interest']['mean']:.3f} ±{g['s2_interest']['std']:.3f}",
-        f"{d['s2_interest']:+.3f}",
-    ))
-    print(row.format(
-        "S1 → S2 interest lift",
-        f"{p['s1_to_s2_lift']:+.3f}",
-        f"{g['s1_to_s2_lift']:+.3f}",
-        "",
-    ))
+    print(
+        row.format(
+            "S1 interest (mean ± std)",
+            f"{p['s1_interest']['mean']:.3f} ±{p['s1_interest']['std']:.3f}",
+            f"{g['s1_interest']['mean']:.3f} ±{g['s1_interest']['std']:.3f}",
+            f"{d['s1_interest']:+.3f}",
+        )
+    )
+    print(
+        row.format(
+            "S2 interest (mean ± std)",
+            f"{p['s2_interest']['mean']:.3f} ±{p['s2_interest']['std']:.3f}",
+            f"{g['s2_interest']['mean']:.3f} ±{g['s2_interest']['std']:.3f}",
+            f"{d['s2_interest']:+.3f}",
+        )
+    )
+    print(
+        row.format(
+            "S1 → S2 interest lift",
+            f"{p['s1_to_s2_lift']:+.3f}",
+            f"{g['s1_to_s2_lift']:+.3f}",
+            "",
+        )
+    )
     print(sep)
-    print(row.format(
-        "S1 conversion rate",
-        f"{p['s1_conversion']:.1%}",
-        f"{g['s1_conversion']:.1%}",
-        f"{d['s1_conversion']:+.1%}",
-    ))
-    print(row.format(
-        "S2 conversion rate",
-        f"{p['s2_conversion']:.1%}",
-        f"{g['s2_conversion']:.1%}",
-        f"{d['s2_conversion']:+.1%}",
-    ))
+    print(
+        row.format(
+            "S1 conversion rate",
+            f"{p['s1_conversion']:.1%}",
+            f"{g['s1_conversion']:.1%}",
+            f"{d['s1_conversion']:+.1%}",
+        )
+    )
+    print(
+        row.format(
+            "S2 conversion rate",
+            f"{p['s2_conversion']:.1%}",
+            f"{g['s2_conversion']:.1%}",
+            f"{d['s2_conversion']:+.1%}",
+        )
+    )
     print(bar)
 
     # Разбивка по портретам
@@ -226,7 +242,9 @@ def _print_report(stats: dict[str, Any]) -> None:
         pm = pb.get("s1_mean", 0.0)
         gm = gb.get("s1_mean", 0.0)
         pn = pb.get("n", 0)
-        print(f"    {portrait}: Pers={pm:.3f} (n={pn})  Generic={gm:.3f}  Δ={pm - gm:+.3f}")
+        print(
+            f"    {portrait}: Pers={pm:.3f} (n={pn})  Generic={gm:.3f}  Δ={pm - gm:+.3f}"
+        )
 
     # Интерпретация
     print()
@@ -236,16 +254,21 @@ def _print_report(stats: dict[str, Any]) -> None:
             f"    LLM-оценщик фиксирует разницу в качестве аргументов."
         )
     elif d["s1_interest"] > 0.01:
-        print(f"  ~ Небольшой положительный эффект ({d['s1_interest']:+.3f}). Увеличьте n для уверенного сигнала.")
+        print(
+            f"  ~ Небольшой положительный эффект ({d['s1_interest']:+.3f}). Увеличьте n для уверенного сигнала."
+        )
     else:
-        print(f"  ✗ Явного преимущества не обнаружено ({d['s1_interest']:+.3f}). "
-              f"Проверьте качество генерации аргументов или увеличьте n.")
+        print(
+            f"  ✗ Явного преимущества не обнаружено ({d['s1_interest']:+.3f}). "
+            f"Проверьте качество генерации аргументов или увеличьте n."
+        )
     print()
 
 
 # ---------------------------------------------------------------------------
 # Полная оценка
 # ---------------------------------------------------------------------------
+
 
 def run_full_evaluation(n: int = 20, output_json: str | None = None) -> None:
     """
@@ -271,8 +294,8 @@ def run_full_evaluation(n: int = 20, output_json: str | None = None) -> None:
     print(f"\n{header}")
     print(f"  ОЦЕНКА ПЕРСОНАЛИЗАЦИИ  |  n={n} клиентов × 2 стратегии")
     print(f"  ~{6 * n} вызовов Mistral API  |  обе стратегии оцениваются LLM")
-    print(f"  Персонализированные: LLM создаёт аргумент под портрет клиента")
-    print(f"  Обезличенные: фиксированный шаблон без персонализации")
+    print("  Персонализированные: LLM создаёт аргумент под портрет клиента")
+    print("  Обезличенные: фиксированный шаблон без персонализации")
     print(header)
     print()
 
@@ -297,17 +320,22 @@ def run_full_evaluation(n: int = 20, output_json: str | None = None) -> None:
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv()
 
     parser = argparse.ArgumentParser(
         description="Оценка: персонализированные LLM-аргументы vs обезличенные шаблоны."
     )
     parser.add_argument(
-        "--n", type=int, default=20,
+        "--n",
+        type=int,
+        default=20,
         help="Количество синтетических клиентов (по умолчанию: 20, ~120 вызовов Mistral)",
     )
     parser.add_argument(
-        "--output", type=str, default=None,
+        "--output",
+        type=str,
+        default=None,
         help="Путь для сохранения JSON-результатов (по умолчанию: evaluation_results.json)",
     )
     args = parser.parse_args()
