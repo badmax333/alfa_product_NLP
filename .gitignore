@@ -89,3 +89,5 @@ dist/
 # Docker
 .dockerignore
 *.tar.gz
+
+Николай/

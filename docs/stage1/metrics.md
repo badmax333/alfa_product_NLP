@@ -260,7 +260,7 @@ python -m pipeline.stage1_pipeline
     "client_features": {...},      # 8 редактируемых признаков
     "classification": {...},       # результат predict()
     "interaction_type": "banner",
-    "sales_argument": {...},       # mock-аргумент
+    "sales_argument": {...},       # sales-аргумент
     "channel": "digital",
     "metrics_result": {
         "interest_score": 0.72,
