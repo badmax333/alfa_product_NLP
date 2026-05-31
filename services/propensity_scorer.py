@@ -272,6 +272,60 @@ def _score_accounting(features: dict[str, Any]) -> tuple[float, list[dict[str, A
     return score, reasons
 
 
+def _score_business_card(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+    reasons = []
+    score = -0.7
+    turnover = _to_float(features, "week_sum_transactions")
+
+    if _to_int(features, "rko_num_live") > 0:
+        score += 0.8
+        reasons.append(_factor("rko_num_live", features.get("rko_num_live"), 0.8, "есть расчетный счет для привязки карты"))
+    if turnover > 30000:
+        score += 0.5
+        reasons.append(_factor("week_sum_transactions", turnover, 0.5, "есть регулярные бизнес-расходы"))
+    if _to_int(features, "cashback_selected") > 0:
+        score += 0.4
+        reasons.append(_factor("cashback_selected", features.get("cashback_selected"), 0.4, "клиент уже выбрал кэшбэк"))
+    if _to_int(features, "plastic_card_issued") > 0:
+        score -= 1.2
+        reasons.append(_factor("plastic_card_issued", features.get("plastic_card_issued"), -1.2, "карта уже выпущена"))
+    return score, reasons
+
+
+def _score_mobile_app(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+    reasons = []
+    score = -0.6
+    source = str(features.get("sourceattr_ccode", ""))
+
+    if source in ("mobile", "online", "api"):
+        score += 0.8
+        reasons.append(_factor("sourceattr_ccode", source, 0.8, "клиент пришел из цифрового канала"))
+    if _to_float(features, "impnt") > 0.5:
+        score += 0.5
+        reasons.append(_factor("impnt", features.get("impnt"), 0.5, "высокая цифровая вовлеченность"))
+    if _to_int(features, "abm_entered") > 0:
+        score += 0.3
+        reasons.append(_factor("abm_entered", features.get("abm_entered"), 0.3, "клиент уже пользуется цифровым банком"))
+    if _to_int(features, "mobile_app_entered") > 0:
+        score -= 1.1
+        reasons.append(_factor("mobile_app_entered", features.get("mobile_app_entered"), -1.1, "мобильное приложение уже используется"))
+    return score, reasons
+
+
+def _score_generic_product(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+    reasons = []
+    score = -0.5
+    turnover = _to_float(features, "week_sum_transactions")
+
+    if turnover > 50000:
+        score += 0.3
+        reasons.append(_factor("week_sum_transactions", turnover, 0.3, "достаточная активность клиента"))
+    if _to_float(features, "impnt") > 0.5:
+        score += 0.2
+        reasons.append(_factor("impnt", features.get("impnt"), 0.2, "есть признаки вовлеченности"))
+    return score, reasons
+
+
 _SCORERS = {
     "zpp": _score_zpp,
     "alfa_payments": _score_alfa_payments,
@@ -281,7 +335,13 @@ _SCORERS = {
     "tax_jar": _score_tax_jar,
     "savings": _score_savings,
     "accounting": _score_accounting,
+    "business_card": _score_business_card,
+    "mobile_app": _score_mobile_app,
 }
+
+
+def _get_scorer(product_id: str):
+    return _SCORERS.get(product_id, _score_generic_product)
 
 
 def _build_top_factors(
@@ -290,7 +350,7 @@ def _build_top_factors(
     priority_segment: str,
     metrics_result: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    base_logit, reasons = _SCORERS[product_id](features)
+    base_logit, reasons = _get_scorer(product_id)(features)
 
     maturity_delta, maturity_factor = _client_maturity_penalty(features)
     if maturity_factor:
@@ -323,7 +383,16 @@ def _format_product_score(
     model_logit: float,
     top_factors: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    product = PROPENSITY_PRODUCTS[product_id]
+    product = PROPENSITY_PRODUCTS.get(
+        product_id,
+        {
+            "name": product_id.replace("_", " ").title(),
+            "ame": None,
+            "scenario_id": None,
+            "description": "Продукт из конфигурации модели склонности.",
+            "anchor": False,
+        },
+    )
     return {
         "product_id": product_id,
         "product_name": product["name"],
@@ -343,7 +412,7 @@ def _score_product_rule_based(
     priority_segment: str,
     metrics_result: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    base_logit, _ = _SCORERS[product_id](features)
+    base_logit, _ = _get_scorer(product_id)(features)
     maturity_delta, _ = _client_maturity_penalty(features)
     segment_delta = SEGMENT_PRODUCT_BIAS.get(priority_segment, {}).get(product_id, 0.0)
     interaction_delta = 0.0
@@ -387,7 +456,8 @@ def _score_products_with_model(
         interest = _to_float(metrics_result, "interest_score", 0.5)
         interaction_delta = (interest - 0.5) * 0.35
 
-    for product_id in PRODUCT_IDS:
+    product_ids = feature_config.get("product_ids") or PRODUCT_IDS
+    for product_id in product_ids:
         frame = _client_product_matrix(features, product_id, feature_config)
         raw_score = float(model.predict_proba(frame)[0, 1])
         calibrated_logit = _logit(raw_score) + interaction_delta
@@ -403,10 +473,16 @@ def score_propensity(
     client_features: dict[str, Any],
     metrics_result: dict[str, Any] | None = None,
     top_k: int = 3,
+    generated_features: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Вернуть top-K продуктов по склонности для клиента после взаимодействия."""
     priority_segment = classification["predicted_class"]
-    features = {**DEFAULT_FEATURES, **client_features, "priority_segment": priority_segment}
+    if generated_features is None:
+        features = {**DEFAULT_FEATURES, **client_features, "priority_segment": priority_segment}
+        feature_source = "default_features"
+    else:
+        features = {**generated_features, **client_features, "priority_segment": priority_segment}
+        feature_source = "llm_generated_features"
 
     artifacts = _load_model_artifacts()
     if artifacts:
@@ -445,6 +521,8 @@ def score_propensity(
         "portrait": priority_segment,
         "portrait_label": classification.get("class_description", ""),
         "model_source": model_source,
+        "feature_source": feature_source,
+        "scoring_features": features,
         "interaction_interest_score": interaction_interest,
         "top_products": scored[:requested_top_k],
         "all_products": scored,
