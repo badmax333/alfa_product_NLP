@@ -17,13 +17,13 @@ POC персонализированного онбординга юридиче
 ┌───────────────────┐    День 0–4     ┌─────────────────────────────┐
 │   СТУПЕНЬ 1       │ ──────────────► │  Статический классификатор  │
 │  Холодный старт   │                 │  (CatBoost, 8 сегментов)    │
-│  Регистр. данные  │                 │  → Якорный продукт + скрипт │
+│  Регистр. данные  │                 │  -> Якорный продукт + скрипт │
 └───────────────────┘                 └─────────────────────────────┘
         │
         ▼ (накопление транзакций 4–30 дней)
 ┌───────────────────┐    День 4–30    ┌─────────────────────────────┐
-│   СТУПЕНЬ 2       │ ──────────────► │  Модели склонности (AUC>0.65│
-│  Транзакц. история│                 │  SHAP → LLM-аргумент        │
+│   СТУПЕНЬ 2       │ ──────────────► │  Модели склонности (AUC>0.65)│
+│  Транзакц. история│                 │  SHAP -> LLM-аргумент        │
 │  30+ событий      │                 │  (батч-генерация, 1/сутки)  │
 └───────────────────┘                 └─────────────────────────────┘
         │
@@ -80,10 +80,13 @@ bash run.sh
 
 | Вкладка | Что делает |
 |---|---|
-| **1 — Классификация** | Выбрать/настроить профиль → получить портрет пользователя, уверенность модели, SHAP-значения |
-| **2 — Sales-аргумент** | Выбрать тип взаимодействия → увидеть промпт для LLM → сгенерировать аргумент через Mistral |
-| **3 — Метрики** | Выбрать канал и метод → сгенерировать 20/15 метрик взаимодействия |
-| **4 — Склонность к продуктам** | После метрик рассчитать top-3 продуктов для следующего предложения |
+| **1 — Stage 1: Классификация** | Выбрать/настроить профиль -> получить портрет (P1–P8), уверенность модели, SHAP-значения, якорный продукт |
+| **2 — Stage 1: Sales-аргумент** | Выбрать тип взаимодействия (banner/push/voice) -> увидеть промпт -> сгенерировать аргумент через Mistral |
+| **3 — Stage 1: Метрики** | Канал определяется автоматически -> сгенерировать 20 (digital) или 15 (voice) метрик взаимодействия |
+| **4 — Stage 2: Склонность** | Рассчитать top-3 продуктов по LightGBM с учётом interest_score из шага 3 |
+| **5 — Stage 2: Sales-аргумент** | Выбрать продукт из top-3 и тип взаимодействия -> сгенерировать аргумент с учётом истории шагов 1–3 |
+| **6 — Stage 2: Метрики** | Оценить реакцию клиента на аргумент Stage 2 (Mistral LLM или случайная симуляция) |
+
 ---
 
 ## API
@@ -93,30 +96,67 @@ bash run.sh
 | GET | `/api/v1/config` | Конфигурация UI (признаки, пресеты, описания классов) |
 | POST | `/api/v1/predict` | Классификация клиента (CatBoost + SHAP) |
 | GET | `/api/v1/sales-args/config` | Типы взаимодействия + демо-примеры аргументов |
-| POST | `/api/v1/sales-args/render-prompt` | Рендеринг промпта sales-аргумента (Jinja2) |
-| POST | `/api/v1/sales-args/generate` | Генерация персонализированного sales-аргумента через Mistral |
+| POST | `/api/v1/sales-args/render-prompt` | Рендеринг промпта Stage 1 аргумента (Jinja2, без вызова LLM) |
+| POST | `/api/v1/sales-args/generate` | Генерация персонализированного Stage 1 аргумента через Mistral |
 | POST | `/api/v1/metrics/render-prompt` | Рендеринг промпта метрик без вызова Mistral |
-| POST | `/api/v1/metrics/generate` | Генерация метрик (`method: "llm"` или `"random"`) |
-| POST | `/api/v1/propensity/score` | Скоринг склонности клиента к продуктам после метрик |
+| POST | `/api/v1/metrics/generate` | Генерация метрик (`method: "llm"` или `"random"`) — используется для Ступеней 1 и 2 |
+| POST | `/api/v1/propensity/score` | Скоринг склонности клиента к 8 продуктам после метрик Ступени 1 |
+| POST | `/api/v1/sales-args/render-prompt-stage2` | Рендеринг промпта Stage 2 аргумента (Jinja2, без вызова LLM) |
+| POST | `/api/v1/sales-args/generate-stage2` | Генерация Stage 2 аргумента с учётом истории взаимодействия и скоринга склонности |
 
 Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## Батч-генерация
+## Батч-генерация и оценка качества
+
+### Батч-генерация Stage 1
 
 ```bash
 python -m pipeline.stage1_pipeline
 ```
-
-Или из кода:
 
 ```python
 from pipeline.stage1_pipeline import run_batch
 results = run_batch(n=100, method="random")
 ```
 
-Подробнее: [docs/stage1/metrics.md#батч-генерация](docs/stage1/metrics.md#батч-генерация)
+### Полный двухступенчатый пайплайн
+
+```python
+from pipeline.full_pipeline import full_run_single
+
+# Один клиент — быстрый режим (без LLM для метрик)
+result = full_run_single(metrics_method="random")
+
+# Полный LLM-режим
+result = full_run_single(s1_personalized=True, s2_personalized=True, metrics_method="llm")
+
+# Структура результата
+result["summary"]  # portrait, s1_interest, s2_interest, s1_activated, s2_activated
+result["s1_argument"]["headline"]  # текст аргумента Ступени 1
+result["propensity"]["top_products"]  # top-3 продукта по склонности
+result["s2_argument"]["headline"]  # текст аргумента Ступени 2
+```
+
+### Оценка качества аргументов (персонализированные vs обезличенные)
+
+```bash
+# n=20 клиентов
+python -m pipeline.evaluation
+
+# Быстрый тест
+python -m pipeline.evaluation --n 5
+
+# Сохранить результаты
+python -m pipeline.evaluation --n 50 --output results/eval_50.json
+```
+
+Сравнивает две стратегии на одних клиентах, метрики в обоих случаях через LLM:
+- **Персонализированные:** LLM создаёт аргумент под портрет -> Mistral оценивает реакцию
+- **Обезличенные:** фиксированный шаблон аргумента -> Mistral оценивает реакцию
+
+Если delta `interest_score` > 0 — персонализация измеримо улучшает качество аргументов.
 
 ---
 
@@ -124,17 +164,33 @@ results = run_batch(n=100, method="random")
 
 ```
 alfa_product_NLP/
-├── api/            # FastAPI (app.py, schemas.py)
-├── config/         # Константы: признаки, метрики, аргументы
-├── docs/           # Подробная документация по ступеням
-│   ├── stage1/
-│   └── stage2/
-├── models/         # ML-модели: CatBoost-классификатор (classifier.py), LightGBM-склонность (propensity_lgbm.pkl)
-├── services/       # Бизнес-логика: Mistral клиент, генерация метрик, рендер промптов, скоринг склонности
-├── notebooks/      # Ноутбук обучения + alfa_classifier.cbm
-├── pipeline/       # Батч-генерация синтетических данных
-├── prompts/        # Jinja2-шаблоны для LLM
-└── web/            # HTML + JS + CSS (4-вкладочный SPA)
+├── api/
+│   ├── app.py          # FastAPI: 10 эндпоинтов (классификация, аргументы, метрики, склонность)
+│   └── schemas.py      # Pydantic-схемы запросов и ответов
+├── config/             # Константы: признаки, метрики, аргументы, продукты склонности
+├── docs/               # Подробная документация
+│   ├── stage1/         # Классификатор, аргументы, метрики
+│   └── stage2/         # Скоринг склонности, Stage 2 аргументы
+├── models/
+│   ├── classifier.py       # CatBoost-классификатор (8 портретов + SHAP)
+│   ├── propensity_lgbm.pkl # LightGBM-модель склонности (ROC-AUC 0.984)
+│   └── feature_config.json # Конфиг признаков LightGBM
+├── pipeline/
+│   ├── stage1_pipeline.py  # Батч-генерация данных Ступени 1
+│   ├── full_pipeline.py    # Полный двухступенчатый пайплайн (full_run_single)
+│   └── evaluation.py       # Оценка качества: персонализированные vs обезличенные аргументы
+├── prompts/            # Jinja2-шаблоны для LLM
+│   ├── stage1_sales_argument.j2
+│   ├── stage1_metrics_generation.j2
+│   └── stage2_sales_argument.j2
+├── services/
+│   ├── llm.py                      # Mistral клиент + retry при 429
+│   ├── sales_argument_generator.py # Генерация аргументов Stage 1 и Stage 2
+│   ├── sales_arg_renderer.py       # Рендеринг Jinja2-промптов аргументов
+│   ├── metrics_generator.py        # Генерация метрик через Mistral
+│   ├── random_metrics_generator.py # Случайная симуляция метрик (без LLM)
+│   └── propensity_scorer.py        # Скоринг склонности (LightGBM + rule-based)
+└── web/                # 6-вкладочный SPA (HTML + JS + CSS)
 ```
 
 ---
@@ -144,20 +200,17 @@ alfa_product_NLP/
 **Ступень 1 (реализовано)**
 - CatBoost классификатор (8 портретов) + SHAP
 - Генерация sales-аргументов через Mistral (banner / push / voice)
-- FastAPI (8 эндпоинтов) + 4-вкладочный UI
+- FastAPI (10 эндпоинтов) + 6-вкладочный SPA
 - 5-уровневая система метрик (20 digital + 15 voice)
 - Генерация метрик: Mistral LLM и случайная (без API)
-- Батч-генерация синтетических данных
+- Батч-генерация синтетических данных (pipeline/stage1_pipeline.py)
+- Retry при ошибках 429 (services/llm.py)
 
 **Ступень 2 (реализовано)**
-- Скоринг склонности к 8 продуктам (`services/propensity_scorer.py`)
-  - LightGBM-модель (ROC-AUC 0.984), fallback на rule-based при отсутствии артефакта
-  - Учитывает `interest_score` из метрик взаимодействия Ступени 1
-  - Top-K факторов с direction + reason для передачи в LLM
-
-**Следующие шаги**
-- 🔲 Генерация sales-аргумента Ступени 2 (отдельный промпт под каждый продукт, контекст из Ступени 1)
-- 🔲 LLM Compliance-checker
-- 🔲 Батч-генерация аргументов (раз в сутки) → CRM
-- 🔲 Подключение реальных транзакционных данных
-- 🔲 A/B тест: персонализированный vs стандартный скрипт
+- Скоринг склонности к 8 продуктам (LightGBM ROC-AUC 0.984 + rule-based fallback)
+- Учёт `interest_score` из метрик взаимодействия Ступени 1
+- Top-K факторов с direction + reason
+- Генерация Stage 2 аргумента с контекстом истории (промпт `stage2_sales_argument.j2`)
+- Генерация метрик Stage 2 (те же 20/15 метрик, тот же эндпоинт)
+- Полный двухступенчатый пайплайн (pipeline/full_pipeline.py)
+- Оценка качества аргументов (pipeline/evaluation.py)

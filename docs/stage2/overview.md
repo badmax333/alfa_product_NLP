@@ -101,27 +101,107 @@ POST /api/v1/propensity/score
   }
 ```
 
-## Что передаётся в LLM на Ступени 2 (следующий шаг)
+## Sales-аргумент Ступени 2
 
-После получения `top_products` генерируется sales-аргумент уже под конкретный продукт.
-В промпт планируется передавать:
+### Что передаётся в LLM
 
 ```
-Портрет клиента (P1–P8) + описание
-Признаки клиента (регистрационные)
-Sales-аргумент Ступени 1 + как отреагировал (interest_score, метрики)
-Предлагаемый продукт (название, AME-код)
-Top-3 фактора склонности (feature + reason) — «почему именно этот продукт»
-Тип взаимодействия (banner / push / voice)
+Портрет клиента (P1–P8) + описание поведения
+Признаки клиента (8 регистрационных)
+Sales-аргумент Ступени 1 (headline + body + product_name + interaction_type)
+Реакция на Ступень 1 (interest_score + user_reaction_text)
+Предлагаемый продукт из склонности (product_name, product_id, description)
+Top-3 фактора склонности (feature + reason — «почему именно этот продукт»)
+Тип взаимодействия Stage 2 (banner / push / voice)
 ```
+
+### Промпт
+
+**Файл:** `prompts/stage2_sales_argument.j2`
+
+Промпт адаптирует тональность по `interest_score` из Ступени 1:
+- `≥ 0.70` — высокий интерес: закрепить, перейти к следующему шагу
+- `0.45–0.70` — нейтрально: предложить конкретную выгоду
+- `< 0.45` — низкий интерес: другой подход, снять возражение
+
+Для каждого из 8 продуктов заданы специфичные talking points.
+
+### Сервис и API
+
+```python
+# services/sales_argument_generator.py
+def generate_stage2_argument(
+    classification: dict,
+    interaction_type: str,
+    client_features: dict,
+    propensity_product: dict,   # один продукт из top_products
+    stage1_argument: dict | None,
+    stage1_metrics: dict | None,
+) -> dict:
+    """Рендерит stage2_sales_argument.j2 и вызывает Mistral."""
+```
+
+```http
+POST /api/v1/sales-args/render-prompt-stage2   # превью промпта без LLM
+POST /api/v1/sales-args/generate-stage2        # генерация через Mistral
+```
+
+## Метрики взаимодействия Stage 2
+
+Используется тот же эндпоинт `/api/v1/metrics/generate`, что и в Ступени 1.
+Передаётся Stage 2 аргумент вместо Stage 1. Метрики идентичны по структуре.
+
+## Пайплайн и оценка качества
+
+### Полный двухступенчатый пайплайн
+
+```python
+# pipeline/full_pipeline.py
+from pipeline.full_pipeline import full_run_single
+
+result = full_run_single(
+    client_features={"smb_type_code": "2", ...},
+    s1_interaction_type="banner",
+    s2_interaction_type="voice",
+    s1_personalized=True,   # LLM генерирует аргумент
+    s2_personalized=True,
+    metrics_method="random", # "llm" или "random"
+)
+
+# Структура результата:
+# result["classification"]    — CatBoost портрет + SHAP
+# result["s1_argument"]       — сгенерированный аргумент Stage 1
+# result["s1_metrics"]        — метрики взаимодействия Stage 1
+# result["propensity"]        — top-3 продуктов по LightGBM
+# result["s2_argument"]       — сгенерированный аргумент Stage 2
+# result["s2_metrics"]        — метрики взаимодействия Stage 2
+# result["summary"]           — плоский dict с ключевыми метриками
+```
+
+### Оценка: персонализированные vs обезличенные аргументы
+
+```bash
+python -m pipeline.evaluation --n 20
+```
+
+Сравнивает две стратегии на одних клиентах — метрики в обоих случаях через LLM:
+
+| Стратегия | Аргумент | Оценщик | Гипотеза |
+|---|---|---|---|
+| Персонализированные | LLM создаёт под портрет клиента | Mistral видит текст аргумента | Выше interest_score |
+| Обезличенные | Фиксированный шаблон | Mistral видит текст аргумента | Ниже interest_score |
+
+Если Δ interest_score > 0 — LLM-оценщик фиксирует реальное качество аргумента.
 
 ## Roadmap
 
 - ✅ Скоринг склонности к 8 продуктам (LightGBM + rule-based fallback)
 - ✅ Top-K факторов с direction + reason
 - ✅ Учёт interest_score из Ступени 1
-- 🔲 Генерация sales-аргумента Ступени 2 (отдельный промпт под каждый продукт)
+- ✅ Генерация Stage 2 аргумента (промпт stage2_sales_argument.j2)
+- ✅ Генерация метрик Stage 2
+- ✅ Полный пайплайн (full_pipeline.py) + оценка качества (evaluation.py)
 - 🔲 LLM Compliance-checker
 - 🔲 Батч-генерация аргументов (раз в сутки) → CRM
 - 🔲 Подключение реальных транзакционных признаков
-- 🔲 A/B тест: персонализированный vs стандартный скрипт
+- 🔲 A/B тест на реальных клиентах
