@@ -11,7 +11,7 @@
     <div class="logo" aria-hidden="true">А</div>
     <div class="header-text">
       <h1>Smart Onboarding</h1>
-      <p>Stage 1: Классификация → Аргумент → Метрики → Склонность · Stage 2: Аргумент → Метрики</p>
+      <p>Stage 1: Классификация → Sales-аргумент → Метрики · Stage 2: Склонность → Sales-аргумент → Метрики</p>
     </div>
   </header>
 
@@ -19,27 +19,27 @@
   <nav class="tabs-nav">
     <button class="tab-btn active" data-tab="classify">
       <span class="tab-num">1</span>
-      <span class="tab-label">Классификация</span>
+      <span class="tab-label">Stage 1 — Классификация</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="sales" id="tab-btn-sales">
       <span class="tab-num">2</span>
-      <span class="tab-label">Sales-аргумент</span>
+      <span class="tab-label">Stage 1 — Sales-аргумент</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="metrics" id="tab-btn-metrics">
       <span class="tab-num">3</span>
-      <span class="tab-label">Метрики взаимодействия</span>
+      <span class="tab-label">Stage 1 — Метрики</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="propensity" id="tab-btn-propensity">
       <span class="tab-num">4</span>
-      <span class="tab-label">Склонность к продуктам</span>
+      <span class="tab-label">Stage 2 — Склонность</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="stage2-sales" id="tab-btn-stage2-sales">
       <span class="tab-num">5</span>
-      <span class="tab-label">Stage 2 — Аргумент</span>
+      <span class="tab-label">Stage 2 — Sales-аргумент</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="stage2-metrics" id="tab-btn-stage2-metrics">
@@ -161,10 +161,10 @@
         <p class="form-title">Метод генерации</p>
         <div class="method-toggle">
           <button class="method-btn active" data-method="llm" onclick="selectMethod('llm')">
-            Mistral LLM
+            LLM
           </button>
           <button class="method-btn" data-method="random" onclick="selectMethod('random')">
-            Случайно (локально)
+            Случайно
           </button>
         </div>
 
@@ -322,10 +322,10 @@
         <p class="form-title">Метод генерации</p>
         <div class="method-toggle">
           <button class="method-btn active" data-method="llm" onclick="selectS2Method('llm')">
-            Mistral LLM
+            LLM
           </button>
           <button class="method-btn" data-method="random" onclick="selectS2Method('random')">
-            Случайно (локально)
+            Случайно
           </button>
         </div>
 

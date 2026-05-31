@@ -80,12 +80,12 @@ body {
 .tab-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 1.4rem;
+  gap: 0.4rem;
+  padding: 0.85rem 0.9rem;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 500;
   color: var(--muted);
   border-bottom: 3px solid transparent;
