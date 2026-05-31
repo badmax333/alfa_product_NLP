@@ -739,6 +739,7 @@ function onEnterPropensityTab() {
   if (!hasMetrics) return;
 
   renderPropensityContext();
+  updatePropensityFeaturePrompt();
   if (propensityResult) {
     renderPropensityResult(propensityResult);
     document.getElementById("to-stage2-bar").classList.remove("hidden");
@@ -775,6 +776,35 @@ function renderPropensityContext() {
   `;
 }
 
+function propensityRequestPayload(topK = 3) {
+  return {
+    classification: classificationResult,
+    client_features: clientFeatures,
+    metrics_result: metricsResult,
+    sales_argument: selectedArgument,
+    top_k: topK,
+  };
+}
+
+async function updatePropensityFeaturePrompt() {
+  if (!classificationResult || !metricsResult) return;
+  const promptEl = document.getElementById("propensity-feature-prompt-text");
+  promptEl.textContent = "Собираем промпт генерации фичей…";
+
+  try {
+    const res = await fetch("/api/v1/propensity/render-feature-prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(propensityRequestPayload()),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    promptEl.textContent = data.rendered_prompt;
+  } catch {
+    promptEl.textContent = "Ошибка загрузки промпта генерации признаков";
+  }
+}
+
 async function scorePropensity() {
   if (!classificationResult || !metricsResult) {
     alert("Сначала рассчитайте метрики взаимодействия");
@@ -784,9 +814,9 @@ async function scorePropensity() {
   const btn = document.getElementById("btn-score-propensity");
   const placeholder = document.getElementById("propensity-placeholder");
   btn.disabled = true;
-  btn.textContent = "Считаем…";
+  btn.textContent = "Генерируем фичи…";
   placeholder.classList.remove("hidden");
-  placeholder.textContent = "Скорим продукты для клиента…";
+  placeholder.textContent = "Mistral генерирует признаки клиента для модели склонности…";
   document.getElementById("propensity-content").classList.add("hidden");
   document.getElementById("to-stage2-bar").classList.add("hidden");
   stage2Argument = null;
@@ -799,13 +829,7 @@ async function scorePropensity() {
     const res = await fetch("/api/v1/propensity/score", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        classification: classificationResult,
-        client_features: clientFeatures,
-        metrics_result: metricsResult,
-        sales_argument: selectedArgument,
-        top_k: 3,
-      }),
+      body: JSON.stringify(propensityRequestPayload(3)),
     });
 
     if (!res.ok) {
@@ -814,6 +838,8 @@ async function scorePropensity() {
     }
 
     propensityResult = await res.json();
+    document.getElementById("propensity-feature-prompt-text").textContent =
+      propensityResult.feature_generation_prompt || "";
     renderPropensityResult(propensityResult);
     document.getElementById("tab-btn-propensity").classList.add("done");
     document.getElementById("to-stage2-bar").classList.remove("hidden");
@@ -823,8 +849,38 @@ async function scorePropensity() {
     placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка скоринга склонности"}</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = "Рассчитать склонность";
+    btn.textContent = "Сгенерировать фичи и рассчитать склонность";
   }
+}
+
+function renderGeneratedFeatures(features) {
+  const priority = [
+    "priority_segment",
+    "week_sum_transactions",
+    "week_mean_transactions",
+    "share_last_month",
+    "share_last_3_months",
+    "srvpackage_sale_uk",
+    "sourceattr_ccode",
+    "acquiring_num_live",
+    "zpp_num_live",
+    "rko_num_live",
+    "abm_entered",
+    "mobile_app_entered",
+    "plastic_card_issued",
+    "cashback_selected",
+  ];
+  const rows = priority
+    .filter((name) => features && features[name] !== undefined)
+    .map(
+      (name) => `
+        <li>
+          <span class="feat-name">${config.feature_labels[name] || name}</span>
+          <span class="feat-val">${displayValue(name, features[name])}</span>
+        </li>`
+    )
+    .join("");
+  return `<ul class="profile-features generated-features">${rows}</ul>`;
 }
 
 function renderPropensityResult(data) {
@@ -881,7 +937,13 @@ function renderPropensityResult(data) {
 
   box.innerHTML = `
     <div class="model-source-note">
-      Источник: ${sourceLabel}
+      Источник: ${sourceLabel}<br>
+      Фичи: ${data.feature_source === "llm_generated_features" ? "сгенерированы Mistral перед скорингом" : data.feature_source}
+    </div>
+    <div class="generated-feature-box">
+      <p class="section-label">Сгенерированные признаки для модели</p>
+      ${data.feature_generation_reasoning ? `<p class="hint">${data.feature_generation_reasoning}</p>` : ""}
+      ${renderGeneratedFeatures(data.generated_features || {})}
     </div>
     ${cards}
   `;

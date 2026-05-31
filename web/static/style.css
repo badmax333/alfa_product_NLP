@@ -966,6 +966,19 @@ body {
   margin-bottom: 1rem;
 }
 
+.generated-feature-box {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+  background: #fff;
+}
+
+.generated-features {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
 .propensity-card {
   border: 1px solid var(--border);
   border-radius: 12px;

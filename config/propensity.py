@@ -59,15 +59,29 @@ PROPENSITY_PRODUCTS: dict[str, dict[str, Any]] = {
         "scenario_id": 12,
         "description": "Помощь с бухгалтерией, отчетностью и налоговыми операциями.",
     },
+    "business_card": {
+        "name": "Бизнес-карта",
+        "ame": None,
+        "anchor": True,
+        "scenario_id": None,
+        "description": "Карта для бизнес-расходов, кэшбэка и контроля трат.",
+    },
+    "mobile_app": {
+        "name": "Мобильное приложение",
+        "ame": None,
+        "anchor": False,
+        "scenario_id": None,
+        "description": "Мобильный банк для быстрых операций и цифрового обслуживания.",
+    },
 }
 
 PRODUCT_IDS = list(PROPENSITY_PRODUCTS)
 
 SEGMENT_PRODUCT_BIAS: dict[str, dict[str, float]] = {
-    "P1": {"zpp": 0.15, "accounting": 0.1},
-    "P2": {"alfa_payments": 0.2, "internet_acquiring": 0.15},
+    "P1": {"zpp": 0.15, "accounting": 0.1, "business_card": 0.1},
+    "P2": {"alfa_payments": 0.2, "internet_acquiring": 0.15, "mobile_app": 0.1},
     "P3": {"trade_acquiring": 0.2, "savings": 0.1},
-    "P4": {"internet_acquiring": 0.2, "alfa_payments": 0.1},
+    "P4": {"internet_acquiring": 0.2, "alfa_payments": 0.1, "mobile_app": 0.15, "business_card": 0.05},
     "P5": {"nachalo": 0.25, "tax_jar": 0.1},
     "P6": {"accounting": 0.2, "tax_jar": 0.15},
     "P7": {"trade_acquiring": 0.15, "zpp": 0.1},
@@ -109,4 +123,8 @@ PROPENSITY_FEATURE_LABELS: dict[str, str] = {
     "accum": "Накопительный профиль",
     "impnt": "Цифровая вовлеченность",
     "complexity": "Сложность профиля",
+    "abm_entered": "Вход в Альфа-Бизнес",
+    "mobile_app_entered": "Вход в мобильное приложение",
+    "plastic_card_issued": "Пластиковая карта выпущена",
+    "cashback_selected": "Кэшбэк выбран",
 }

@@ -213,12 +213,18 @@
       </section>
 
       <section class="card col-prompt">
-        <h2>Stage 2 scoring</h2>
+        <h2>Генерация фичей Stage 2</h2>
         <p class="hint">
-          Модель оценивает склонность клиента к каждому продукту и выбирает top-3 для следующего предложения.
+          Перед скорингом Mistral собирает полный feature vector из профиля, аргумента и метрик взаимодействия.
         </p>
+
+        <h3 class="form-title">Промпт генерации признаков</h3>
+        <div id="propensity-feature-prompt-box" class="prompt-box">
+          <pre id="propensity-feature-prompt-text" class="prompt-text">Промпт отобразится после перехода на этот шаг</pre>
+        </div>
+
         <button class="btn-primary" id="btn-score-propensity" onclick="scorePropensity()">
-          Рассчитать склонность
+          Сгенерировать фичи и рассчитать склонность
         </button>
 
         <div id="to-stage2-bar" class="next-step-bar hidden">

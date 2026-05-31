@@ -222,6 +222,10 @@ DEFAULT_FEATURES = {
     "to_activate": 1,
     "complexity": 0.4,
     "get_scores": 0.62,
+    "abm_entered": 0,
+    "mobile_app_entered": 0,
+    "plastic_card_issued": 0,
+    "cashback_selected": 0,
 }
 
 # 5 демо-пресетов для быстрого заполнения формы
