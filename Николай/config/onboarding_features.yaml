@@ -49,3 +49,10 @@ features:
   okved_groups_unique_cnt: "число групп ОКВЭД"
   smb_type_code: "тип МСП: 1=ЮЛ, 2=ИП, 3=КФХ"
   apin_status_period_cnt: "месяцев в статусе руководителей"
+
+# Бинарные фичи (0/1), синтезируются в onboarding_binary_features.py при отсутствии в CSV
+binary_features:
+  abm_entered: "вход в интернет-банк"
+  mobile_app_entered: "вход в мобильное приложение"
+  plastic_card_issued: "пластиковая бизнес-карта выпущена"
+  cashback_selected: "категория кэшбэка выбрана"

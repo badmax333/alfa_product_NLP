@@ -33,6 +33,12 @@ FEATURE_LABELS_RU: dict[str, str] = {
     "zpp_num_live": "Уже подключён ЗПП",
     "nkop_num_live": "Уже подключена налоговая копилка",
     "acquiring_num_live": "Уже подключён эквайринг",
+    "apin_product_active_days": "Дней активности в цифровых каналах",
+    "xpin_start_days": "Дней с регистрации в цифровом профиле",
+    "abm_entered": "Вход в интернет-банк",
+    "mobile_app_entered": "Вход в мобильное приложение",
+    "plastic_card_issued": "Пластиковая карта выпущена",
+    "cashback_selected": "Категория кэшбэка выбрана",
 }
 
 

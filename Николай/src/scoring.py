@@ -13,6 +13,7 @@ import pandas as pd
 import yaml
 
 from feature_rules import PRODUCT_IDS
+from onboarding_binary_features import enrich_clients
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ONBOARDING = ROOT / "data" / "alfa_onboarding_dataset_5000.csv"
@@ -51,6 +52,8 @@ class PropensityScorer:
 
     def _client_to_matrix(self, client: pd.Series, product_id: str) -> pd.DataFrame:
         row = client.copy()
+        if "abm_entered" not in row.index:
+            row = enrich_clients(client.to_frame().T).iloc[0]
         if "target" in row.index:
             row["priority_segment"] = row["target"]
         row["product_id"] = product_id
@@ -65,6 +68,8 @@ class PropensityScorer:
         return float(self.pipe.predict_proba(X)[0, 1])
 
     def score_client(self, client: pd.Series, top_k: int = 3) -> list[ProductScore]:
+        if "abm_entered" not in client.index:
+            client = enrich_clients(client.to_frame().T).iloc[0]
         scores: list[tuple[str, float]] = []
         for pid in PRODUCT_IDS:
             scores.append((pid, self.score_product(client, pid)))
@@ -108,4 +113,5 @@ class PropensityScorer:
 
 def load_onboarding_clients(path: Path | None = None) -> pd.DataFrame:
     path = path or DEFAULT_ONBOARDING
-    return pd.read_csv(path).reset_index(drop=True)
+    clients = pd.read_csv(path).reset_index(drop=True)
+    return enrich_clients(clients)

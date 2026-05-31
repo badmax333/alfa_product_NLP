@@ -4,11 +4,11 @@ source: "alfa_onboarding_dataset + BRD + общая архитектура"
 segments:
   P1:
     title: "Розничный продавец"
-    anchor_products: [trade_acquiring]
+    anchor_products: [trade_acquiring, business_card, mobile_app]
     description: "ИП/ЮЛ розница, ОКВЭД 47, офлайн-продажи, канал branch."
   P2:
     title: "IT / Онлайн-бизнес"
-    anchor_products: [internet_acquiring, alfa_payments]
+    anchor_products: [internet_acquiring, alfa_payments, mobile_app]
     description: "Разработка, SaaS, digital-категории, онлайн-канал привлечения."
   P3:
     title: "Строитель / Подрядчик"
@@ -16,11 +16,11 @@ segments:
     description: "Строительство, высокие обороты, выплаты подрядчикам и зарплаты."
   P4:
     title: "Фрилансер / Самозанятый ИП"
-    anchor_products: [nachalo, alfa_payments, internet_acquiring]
+    anchor_products: [nachalo, alfa_payments, internet_acquiring, business_card, mobile_app]
     description: "ИП услуги, умеренный оборот, подписки переводов, digital."
   P5:
     title: "Новое ЮЛ / Стартап"
-    anchor_products: [nachalo, tax_jar, accounting]
+    anchor_products: [nachalo, tax_jar, accounting, business_card, mobile_app]
     description: "Молодой бизнес <90 дней с ОГРН, старт тарифа, налоги, бухгалтерия."
   P6:
     title: "Услуги / HoReCa"
@@ -48,3 +48,7 @@ brd_feature_map:
   categ_name_retail: categ_name
   categ_name_tax: categ_name
   sourceattr_online: sourceattr_ccode
+  abm_entered: abm_entered
+  mobile_app_entered: mobile_app_entered
+  plastic_card_issued: plastic_card_issued
+  cashback_selected: cashback_selected

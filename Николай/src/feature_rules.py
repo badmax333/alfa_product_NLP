@@ -14,18 +14,20 @@ PRODUCT_IDS = [
     "tax_jar",
     "savings",
     "accounting",
+    "business_card",
+    "mobile_app",
 ]
 
 # Сегменты P* слегка смещают базовую склонность к «своим» продуктам (связь с классификатором 1)
 SEGMENT_PRODUCT_BIAS: dict[str, dict[str, float]] = {
-    "P1": {"zpp": 0.15, "accounting": 0.1},
-    "P2": {"alfa_payments": 0.2, "internet_acquiring": 0.15},
-    "P3": {"trade_acquiring": 0.2, "savings": 0.1},
-    "P4": {"internet_acquiring": 0.2, "alfa_payments": 0.1},
-    "P5": {"nachalo": 0.25, "tax_jar": 0.1},
-    "P6": {"accounting": 0.2, "tax_jar": 0.15},
-    "P7": {"trade_acquiring": 0.15, "zpp": 0.1},
-    "P8": {"zpp": 0.1, "nachalo": 0.15},
+    "P1": {"zpp": 0.15, "accounting": 0.1, "business_card": 0.12},
+    "P2": {"alfa_payments": 0.2, "internet_acquiring": 0.15, "mobile_app": 0.15},
+    "P3": {"trade_acquiring": 0.2, "savings": 0.1, "business_card": 0.08},
+    "P4": {"internet_acquiring": 0.2, "alfa_payments": 0.1, "mobile_app": 0.12, "business_card": 0.1},
+    "P5": {"nachalo": 0.25, "tax_jar": 0.1, "mobile_app": 0.2, "business_card": 0.15},
+    "P6": {"accounting": 0.2, "tax_jar": 0.15, "mobile_app": 0.1},
+    "P7": {"trade_acquiring": 0.15, "zpp": 0.1, "business_card": 0.08},
+    "P8": {"zpp": 0.1, "nachalo": 0.15, "mobile_app": 0.1},
 }
 
 RETAIL_OKVED = {47, 49, 52, 53, 55, 56}
@@ -183,6 +185,38 @@ def logit_accounting(row: pd.Series) -> float:
     return score
 
 
+def _bin(row: pd.Series, col: str) -> int:
+    return int(row[col]) if col in row.index and pd.notna(row[col]) else 0
+
+
+def logit_business_card(row: pd.Series) -> float:
+    """Пластиковая карта + кэшбэк — бинарные plastic_card_issued, cashback_selected."""
+    score = -0.8
+    if _bin(row, "plastic_card_issued") == 0:
+        score += 2.0
+    if _bin(row, "cashback_selected") == 0:
+        score += 1.3
+    if _bin(row, "plastic_card_issued") == 1 and _bin(row, "cashback_selected") == 1:
+        score -= 2.5
+    if float(row.get("week_sum_transactions", 0)) > 20_000 and _bin(row, "plastic_card_issued") == 0:
+        score += 0.35
+    return score
+
+
+def logit_mobile_app(row: pd.Series) -> float:
+    """Вход в АБМ / приложение — бинарные abm_entered, mobile_app_entered."""
+    score = -0.5
+    if _bin(row, "abm_entered") == 0:
+        score += 2.2
+    if _bin(row, "mobile_app_entered") == 0:
+        score += 1.4
+    if _bin(row, "abm_entered") == 1 and _bin(row, "mobile_app_entered") == 1:
+        score -= 2.6
+    if float(row["days_from_ogrn"]) < 120 and _bin(row, "abm_entered") == 0:
+        score += 0.4
+    return score
+
+
 LOGIT_FN = {
     "zpp": logit_zpp,
     "alfa_payments": logit_alfa_payments,
@@ -192,6 +226,8 @@ LOGIT_FN = {
     "tax_jar": logit_tax_jar,
     "savings": logit_savings,
     "accounting": logit_accounting,
+    "business_card": logit_business_card,
+    "mobile_app": logit_mobile_app,
 }
 
 

@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from feature_rules import compute_propensity_scores
+from onboarding_binary_features import enrich_clients
 from propensity_llm_mock import (
     build_segment_examples,
     mock_llm_propensity_response,
@@ -119,8 +120,9 @@ def main() -> None:
     args = parser.parse_args()
 
     clients = pd.read_csv(args.source).reset_index(drop=True)
-
     rng = np.random.default_rng(args.seed)
+    clients = enrich_clients(clients, rng=rng, force=True)
+
     rule_df = compute_propensity_scores(clients, rng=rng)
 
     if args.mode == "hybrid":

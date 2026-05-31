@@ -16,6 +16,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
+from feature_rules import PRODUCT_IDS
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "propensity_synthetic.csv"
 MODEL_PATH = ROOT / "models" / "propensity_lgbm.pkl"
@@ -61,6 +63,10 @@ NUM_FEATURES = [
     "to_activate",
     "complexity",
     "get_scores",
+    "abm_entered",
+    "mobile_app_entered",
+    "plastic_card_issued",
+    "cashback_selected",
 ]
 
 TARGET = "propensity_label"
@@ -133,8 +139,19 @@ def main() -> None:
     joblib.dump(pipe, MODEL_PATH)
 
     config = {
+        "product_ids": PRODUCT_IDS,
         "cat_features": cat_cols,
         "num_features": num_cols,
+        "binary_features": [
+            c
+            for c in (
+                "abm_entered",
+                "mobile_app_entered",
+                "plastic_card_issued",
+                "cashback_selected",
+            )
+            if c in num_cols
+        ],
         "target": TARGET,
         "metrics": {"roc_auc": roc, "pr_auc": pr},
     }

@@ -45,3 +45,28 @@ python3 src/train_propensity.py
 
 - `data/alfa_onboarding_dataset_5000.csv` — клиенты и сегменты P1–P8 (классификатор ступени 1)
 - BRD: `config/brd_scripts.yaml`, `config/products.yaml`, `config/onboarding_features.yaml`
+
+## Интеграция (ступень 2 → общий пайплайн)
+
+Минимум для скоринга без переобучения:
+
+| Файл | Назначение |
+|------|------------|
+| `models/propensity_lgbm.pkl` | веса LightGBM |
+| `models/feature_config.json` | список `cat_features` / `num_features` |
+| `config/products.yaml` | 10 продуктов и названия |
+
+Бинарные колонки (`abm_entered`, `mobile_app_entered`, `plastic_card_issued`, `cashback_selected`) **добавляются автоматически** в `PropensityScorer` / `load_onboarding_clients()`, если их нет во входном CSV.
+
+```python
+from scoring import PropensityScorer, load_onboarding_clients
+scorer = PropensityScorer()
+client = load_onboarding_clients().iloc[0]
+print(scorer.score_client(client, top_k=3))
+```
+
+Стек: LightGBM + sklearn pipeline (см. `requirements.txt`). Демо в контейнере: `docker build -t propensity .`
+
+## Продукты (10)
+
+zpp, alfa_payments, nachalo, trade_acquiring, internet_acquiring, tax_jar, savings, accounting, **business_card**, **mobile_app**

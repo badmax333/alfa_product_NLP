@@ -26,8 +26,21 @@
 | `tax_jar`           | Налоговая копилка                | да      | ИП/УСН proxy, tax categ          |
 | `savings`           | Накопительный счёт               | да      | balance, stability               |
 | `accounting`        | Бухгалтерия                      | да      | ИП, young UL, low complexity     |
+| `business_card`     | Пластиковая бизнес-карта + кэшбэк | да   | обороты, retail, вовлечённость   |
+| `mobile_app`        | Вход в интернет-банк / приложение | да   | abm_entered, mobile_app_entered  |
 
-«Действия» (мобильное приложение, платёж по карте) **без отдельной модели склонности** — приоритет задаётся правилами онбординга (классификатор P*).
+### Бинарные фичи онбординга (0/1)
+
+Генерируются в `onboarding_binary_features.py` (если нет в CSV):
+
+| Колонка | Смысл |
+|---------|--------|
+| `abm_entered` | Вошёл в интернет-банк |
+| `mobile_app_entered` | Вошёл в мобильное приложение |
+| `plastic_card_issued` | Выпущена пластиковая карта |
+| `cashback_selected` | Выбрана категория кэшбэка |
+
+Правила меток для `mobile_app` / `business_card` опираются на эти фичи; они же входят в LGBM (`feature_config.json`).
 
 ## Формат данных
 
@@ -43,7 +56,7 @@
 | `label_source` | `hybrid_rule+mock_llm` (или `rule+noise` при `--mode rule`) |
 | … | Общие признаки клиента + `product_id` (категория) |
 
-Объём: 5000 × 8 продуктов = **40 000** строк (файл `data/propensity_synthetic.csv`).
+Объём: 5000 × 10 продуктов = **50 000** строк (файл `data/propensity_synthetic.csv`).
 
 ## Модель
 

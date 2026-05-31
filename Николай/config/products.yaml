@@ -75,3 +75,21 @@ products:
       - smb_type_code
       - days_from_ogrn
       - complexity
+
+  business_card:
+    name_ru: "Пластиковая бизнес-карта + кэшбэк"
+    anchor: true
+    onboarding_scenario_id: null
+    brd_features:
+      - plastic_card_issued
+      - cashback_selected
+      - week_sum_transactions
+
+  mobile_app:
+    name_ru: "Вход в интернет-банк / мобильное приложение"
+    anchor: true
+    onboarding_scenario_id: 15
+    brd_features:
+      - abm_entered
+      - mobile_app_entered
+      - days_from_ogrn
