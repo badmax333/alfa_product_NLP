@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-from pathlib import Path
 from typing import Any
 
 import joblib
@@ -80,12 +79,18 @@ def _revenue_segment_proxy(features: dict[str, Any]) -> str:
     return "350-500"
 
 
-def _client_maturity_penalty(features: dict[str, Any]) -> tuple[float, dict[str, Any] | None]:
+def _client_maturity_penalty(
+    features: dict[str, Any],
+) -> tuple[float, dict[str, Any] | None]:
     days = _to_float(features, "days_from_ogrn", 0.0)
     if days < 30:
-        return -0.8, _factor("days_from_ogrn", days, -0.8, "молодой бизнес: меньше 30 дней")
+        return -0.8, _factor(
+            "days_from_ogrn", days, -0.8, "молодой бизнес: меньше 30 дней"
+        )
     if days < 90:
-        return -0.35, _factor("days_from_ogrn", days, -0.35, "молодой бизнес: меньше 90 дней")
+        return -0.35, _factor(
+            "days_from_ogrn", days, -0.35, "молодой бизнес: меньше 90 дней"
+        )
     return 0.0, None
 
 
@@ -106,53 +111,124 @@ def _score_zpp(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
     smb = _to_int(features, "smb_type_code")
     okved = _to_int(features, "okved_major")
     turnover = _to_float(features, "week_sum_transactions")
-    payment_fiz_proxy = _to_float(features, "week_mean_transactions") / 30.0 + _to_float(features, "prev_managers") * 0.05
+    payment_fiz_proxy = (
+        _to_float(features, "week_mean_transactions") / 30.0
+        + _to_float(features, "prev_managers") * 0.05
+    )
     revenue_segment = _revenue_segment_proxy(features)
     is_young = _to_float(features, "days_from_ogrn") <= 365
 
     if smb in (1, 2):
         score += 0.6
-        reasons.append(_factor("smb_type_code", smb, 0.6, "ЮЛ/ИП подходит для зарплатного проекта"))
+        reasons.append(
+            _factor("smb_type_code", smb, 0.6, "ЮЛ/ИП подходит для зарплатного проекта")
+        )
     if revenue_segment in ("0-5", "5-20") and smb == 1 and is_young:
         score += 1.1
-        reasons.append(_factor("share_last_month", features.get("share_last_month"), 1.1, "молодое ЮЛ с небольшим оборотом"))
+        reasons.append(
+            _factor(
+                "share_last_month",
+                features.get("share_last_month"),
+                1.1,
+                "молодое ЮЛ с небольшим оборотом",
+            )
+        )
     if smb == 2 and payment_fiz_proxy > 0.35:
         score += 0.9
-        reasons.append(_factor("week_mean_transactions", features.get("week_mean_transactions"), 0.9, "есть proxy выплат физлицам"))
+        reasons.append(
+            _factor(
+                "week_mean_transactions",
+                features.get("week_mean_transactions"),
+                0.9,
+                "есть proxy выплат физлицам",
+            )
+        )
     if revenue_segment in ("20-90", "90-350", "350-500") and turnover > 50000:
         score += 0.5
-        reasons.append(_factor("week_sum_transactions", turnover, 0.5, "достаточный оборот для регулярных выплат"))
+        reasons.append(
+            _factor(
+                "week_sum_transactions",
+                turnover,
+                0.5,
+                "достаточный оборот для регулярных выплат",
+            )
+        )
     if _to_int(features, "zpp_num_live") > 0:
         score -= 1.5
-        reasons.append(_factor("zpp_num_live", features.get("zpp_num_live"), -1.5, "зарплатный проект уже подключен"))
+        reasons.append(
+            _factor(
+                "zpp_num_live",
+                features.get("zpp_num_live"),
+                -1.5,
+                "зарплатный проект уже подключен",
+            )
+        )
     if okved in RETAIL_OKVED:
         score += 0.2
-        reasons.append(_factor("okved_major", okved, 0.2, "розничная отрасль часто имеет регулярный персонал"))
+        reasons.append(
+            _factor(
+                "okved_major",
+                okved,
+                0.2,
+                "розничная отрасль часто имеет регулярный персонал",
+            )
+        )
     return score, reasons
 
 
-def _score_alfa_payments(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+def _score_alfa_payments(
+    features: dict[str, Any],
+) -> tuple[float, list[dict[str, Any]]]:
     reasons = []
     score = -0.8
     package = str(features.get("srvpackage_sale_uk", ""))
     turnover = _to_float(features, "week_sum_transactions")
-    deb_fl_proxy = _to_float(features, "week_mean_transactions") * _to_float(features, "share_last_3_months")
+    deb_fl_proxy = _to_float(features, "week_mean_transactions") * _to_float(
+        features, "share_last_3_months"
+    )
 
     if package not in ("none", "base"):
         score += 1.0
-        reasons.append(_factor("srvpackage_sale_uk", package, 1.0, "клиент уже использует расширенный пакет"))
+        reasons.append(
+            _factor(
+                "srvpackage_sale_uk",
+                package,
+                1.0,
+                "клиент уже использует расширенный пакет",
+            )
+        )
     if turnover > 80000:
         score += 0.9
-        reasons.append(_factor("week_sum_transactions", turnover, 0.9, "высокий недельный оборот"))
+        reasons.append(
+            _factor("week_sum_transactions", turnover, 0.9, "высокий недельный оборот")
+        )
     if deb_fl_proxy > 2:
         score += 0.6
-        reasons.append(_factor("week_mean_transactions", features.get("week_mean_transactions"), 0.6, "высокая расчетная активность"))
+        reasons.append(
+            _factor(
+                "week_mean_transactions",
+                features.get("week_mean_transactions"),
+                0.6,
+                "высокая расчетная активность",
+            )
+        )
     if _to_float(features, "impnt") > 0.5:
         score += 0.3
-        reasons.append(_factor("impnt", features.get("impnt"), 0.3, "хорошая цифровая вовлеченность"))
+        reasons.append(
+            _factor(
+                "impnt", features.get("impnt"), 0.3, "хорошая цифровая вовлеченность"
+            )
+        )
     if package == "none" and turnover < 10000:
         score -= 0.7
-        reasons.append(_factor("srvpackage_sale_uk", package, -0.7, "низкая активность без пакета услуг"))
+        reasons.append(
+            _factor(
+                "srvpackage_sale_uk",
+                package,
+                -0.7,
+                "низкая активность без пакета услуг",
+            )
+        )
     return score, reasons
 
 
@@ -160,24 +236,55 @@ def _score_nachalo(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]
     reasons = []
     score = -0.5
     package = str(features.get("srvpackage_sale_uk", ""))
-    commission_proxy = _to_float(features, "complexity") * _to_float(features, "week_sum_transactions") / 1_000_000
+    commission_proxy = (
+        _to_float(features, "complexity")
+        * _to_float(features, "week_sum_transactions")
+        / 1_000_000
+    )
 
     if package in ("none", "base"):
         score += 1.1
-        reasons.append(_factor("srvpackage_sale_uk", package, 1.1, "стартовый или отсутствующий пакет"))
+        reasons.append(
+            _factor(
+                "srvpackage_sale_uk", package, 1.1, "стартовый или отсутствующий пакет"
+            )
+        )
     if commission_proxy > 0.02:
         score += 0.7
-        reasons.append(_factor("complexity", features.get("complexity"), 0.7, "есть потенциал экономии на комиссиях"))
+        reasons.append(
+            _factor(
+                "complexity",
+                features.get("complexity"),
+                0.7,
+                "есть потенциал экономии на комиссиях",
+            )
+        )
     if _to_float(features, "share_last_month") < 0.4:
         score += 0.4
-        reasons.append(_factor("share_last_month", features.get("share_last_month"), 0.4, "ранняя стадия активности"))
+        reasons.append(
+            _factor(
+                "share_last_month",
+                features.get("share_last_month"),
+                0.4,
+                "ранняя стадия активности",
+            )
+        )
     if package == "premium":
         score -= 1.2
-        reasons.append(_factor("srvpackage_sale_uk", package, -1.2, "premium-пакет уже закрывает потребность"))
+        reasons.append(
+            _factor(
+                "srvpackage_sale_uk",
+                package,
+                -1.2,
+                "premium-пакет уже закрывает потребность",
+            )
+        )
     return score, reasons
 
 
-def _score_trade_acquiring(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+def _score_trade_acquiring(
+    features: dict[str, Any],
+) -> tuple[float, list[dict[str, Any]]]:
     reasons = []
     score = -1.0
     okved = _to_int(features, "okved_major")
@@ -186,17 +293,40 @@ def _score_trade_acquiring(features: dict[str, Any]) -> tuple[float, list[dict[s
 
     if okved in RETAIL_OKVED or category in RETAIL_CATEGORIES:
         score += 1.2
-        reasons.append(_factor("categ_name", category, 1.2, "розничный/offline контекст для приема карт"))
+        reasons.append(
+            _factor(
+                "categ_name",
+                category,
+                1.2,
+                "розничный/offline контекст для приема карт",
+            )
+        )
     if turnover > 40000:
         score += 0.5
-        reasons.append(_factor("week_sum_transactions", turnover, 0.5, "оборот достаточен для эквайринга"))
+        reasons.append(
+            _factor(
+                "week_sum_transactions",
+                turnover,
+                0.5,
+                "оборот достаточен для эквайринга",
+            )
+        )
     if _to_int(features, "acquiring_num_live") > 0:
         score -= 1.3
-        reasons.append(_factor("acquiring_num_live", features.get("acquiring_num_live"), -1.3, "эквайринг уже подключен"))
+        reasons.append(
+            _factor(
+                "acquiring_num_live",
+                features.get("acquiring_num_live"),
+                -1.3,
+                "эквайринг уже подключен",
+            )
+        )
     return score, reasons
 
 
-def _score_internet_acquiring(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+def _score_internet_acquiring(
+    features: dict[str, Any],
+) -> tuple[float, list[dict[str, Any]]]:
     reasons = []
     score = -0.9
     category = str(features.get("categ_name", ""))
@@ -204,13 +334,21 @@ def _score_internet_acquiring(features: dict[str, Any]) -> tuple[float, list[dic
 
     if category in DIGITAL_CATEGORIES:
         score += 1.1
-        reasons.append(_factor("categ_name", category, 1.1, "digital-категория бизнеса"))
+        reasons.append(
+            _factor("categ_name", category, 1.1, "digital-категория бизнеса")
+        )
     if source in ("website", "online", "api", "mobile", "social"):
         score += 0.6
-        reasons.append(_factor("sourceattr_ccode", source, 0.6, "онлайн-канал привлечения"))
+        reasons.append(
+            _factor("sourceattr_ccode", source, 0.6, "онлайн-канал привлечения")
+        )
     if _to_float(features, "impnt") > 0.6:
         score += 0.3
-        reasons.append(_factor("impnt", features.get("impnt"), 0.3, "высокая цифровая вовлеченность"))
+        reasons.append(
+            _factor(
+                "impnt", features.get("impnt"), 0.3, "высокая цифровая вовлеченность"
+            )
+        )
     return score, reasons
 
 
@@ -222,16 +360,39 @@ def _score_tax_jar(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]
 
     if smb == 2:
         score += 0.9
-        reasons.append(_factor("smb_type_code", smb, 0.9, "ИП часто нужен резерв под налоги"))
+        reasons.append(
+            _factor("smb_type_code", smb, 0.9, "ИП часто нужен резерв под налоги")
+        )
     if category in TAX_CATEGORIES:
         score += 0.7
-        reasons.append(_factor("categ_name", category, 0.7, "налоговый или банковский контекст операций"))
+        reasons.append(
+            _factor(
+                "categ_name",
+                category,
+                0.7,
+                "налоговый или банковский контекст операций",
+            )
+        )
     if _to_int(features, "nkop_num_live") > 0:
         score -= 1.4
-        reasons.append(_factor("nkop_num_live", features.get("nkop_num_live"), -1.4, "налоговая копилка уже подключена"))
+        reasons.append(
+            _factor(
+                "nkop_num_live",
+                features.get("nkop_num_live"),
+                -1.4,
+                "налоговая копилка уже подключена",
+            )
+        )
     if _to_float(features, "days_from_ogrn") < 180:
         score += 0.3
-        reasons.append(_factor("days_from_ogrn", features.get("days_from_ogrn"), 0.3, "молодому бизнесу полезен налоговый резерв"))
+        reasons.append(
+            _factor(
+                "days_from_ogrn",
+                features.get("days_from_ogrn"),
+                0.3,
+                "молодому бизнесу полезен налоговый резерв",
+            )
+        )
     return score, reasons
 
 
@@ -240,14 +401,27 @@ def _score_savings(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]
     score = -0.6
     if _to_float(features, "accum") > 0.4:
         score += 0.8
-        reasons.append(_factor("accum", features.get("accum"), 0.8, "есть накопительный профиль"))
+        reasons.append(
+            _factor("accum", features.get("accum"), 0.8, "есть накопительный профиль")
+        )
     if _to_float(features, "share_last_3_months") > 0.6:
         score += 0.5
-        reasons.append(_factor("share_last_3_months", features.get("share_last_3_months"), 0.5, "стабильная активность за 3 месяца"))
+        reasons.append(
+            _factor(
+                "share_last_3_months",
+                features.get("share_last_3_months"),
+                0.5,
+                "стабильная активность за 3 месяца",
+            )
+        )
     turnover = _to_float(features, "week_sum_transactions")
     if turnover > 30000:
         score += 0.4
-        reasons.append(_factor("week_sum_transactions", turnover, 0.4, "есть свободный денежный поток"))
+        reasons.append(
+            _factor(
+                "week_sum_transactions", turnover, 0.4, "есть свободный денежный поток"
+            )
+        )
     return score, reasons
 
 
@@ -259,16 +433,34 @@ def _score_accounting(features: dict[str, Any]) -> tuple[float, list[dict[str, A
 
     if smb == 2:
         score += 1.0
-        reasons.append(_factor("smb_type_code", smb, 1.0, "ИП часто нужна простая бухгалтерия"))
+        reasons.append(
+            _factor("smb_type_code", smb, 1.0, "ИП часто нужна простая бухгалтерия")
+        )
     if _to_float(features, "days_from_ogrn") < 730:
         score += 0.5
-        reasons.append(_factor("days_from_ogrn", features.get("days_from_ogrn"), 0.5, "молодому бизнесу важна настройка учета"))
+        reasons.append(
+            _factor(
+                "days_from_ogrn",
+                features.get("days_from_ogrn"),
+                0.5,
+                "молодому бизнесу важна настройка учета",
+            )
+        )
     if _to_float(features, "complexity") < 0.5:
         score += 0.4
-        reasons.append(_factor("complexity", features.get("complexity"), 0.4, "профиль подходит для типового бухгалтерского сервиса"))
+        reasons.append(
+            _factor(
+                "complexity",
+                features.get("complexity"),
+                0.4,
+                "профиль подходит для типового бухгалтерского сервиса",
+            )
+        )
     if category in ("tax_payment", "bank_operations", "misc"):
         score += 0.3
-        reasons.append(_factor("categ_name", category, 0.3, "есть бухгалтерско-налоговый контекст"))
+        reasons.append(
+            _factor("categ_name", category, 0.3, "есть бухгалтерско-налоговый контекст")
+        )
     return score, reasons
 
 
@@ -358,7 +550,14 @@ def _build_top_factors(
 
     segment_delta = SEGMENT_PRODUCT_BIAS.get(priority_segment, {}).get(product_id, 0.0)
     if segment_delta:
-        reasons.append(_factor("priority_segment", priority_segment, segment_delta, "связь продукта с портретом клиента"))
+        reasons.append(
+            _factor(
+                "priority_segment",
+                priority_segment,
+                segment_delta,
+                "связь продукта с портретом клиента",
+            )
+        )
 
     interaction_delta = 0.0
     if metrics_result:
@@ -422,7 +621,9 @@ def _score_product_rule_based(
 
     final_logit = base_logit + maturity_delta + segment_delta + interaction_delta
     score = round(_sigmoid(final_logit), 6)
-    top_factors = _build_top_factors(features, product_id, priority_segment, metrics_result)
+    top_factors = _build_top_factors(
+        features, product_id, priority_segment, metrics_result
+    )
     return _format_product_score(product_id, score, final_logit, top_factors)
 
 
@@ -462,8 +663,14 @@ def _score_products_with_model(
         raw_score = float(model.predict_proba(frame)[0, 1])
         calibrated_logit = _logit(raw_score) + interaction_delta
         calibrated_score = _sigmoid(calibrated_logit)
-        top_factors = _build_top_factors(features, product_id, priority_segment, metrics_result)
-        scored.append(_format_product_score(product_id, calibrated_score, calibrated_logit, top_factors))
+        top_factors = _build_top_factors(
+            features, product_id, priority_segment, metrics_result
+        )
+        scored.append(
+            _format_product_score(
+                product_id, calibrated_score, calibrated_logit, top_factors
+            )
+        )
 
     return scored
 

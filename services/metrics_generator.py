@@ -14,7 +14,7 @@ from config.metrics import (
     get_metrics_for_channel,
 )
 from config.sales_arguments import INTERACTION_TYPES
-from services.llm import MISTRAL_MODEL, get_mistral_client
+from services.llm import call_mistral
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _jinja_env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR)), autoescape=False)
@@ -53,7 +53,8 @@ def render_metrics_prompt(
         channel_label=CHANNEL_LABELS.get(channel, channel),
         interaction_type=sales_argument.get("interaction_type", ""),
         interaction_type_label=INTERACTION_TYPE_MAP.get(
-            sales_argument.get("interaction_type", ""), sales_argument.get("interaction_type", "")
+            sales_argument.get("interaction_type", ""),
+            sales_argument.get("interaction_type", ""),
         ),
         sales_argument=sales_argument,
         metrics_by_level=metrics_by_level,
@@ -115,15 +116,7 @@ def generate_metrics(
         client_features=client_features,
     )
 
-    client = get_mistral_client()
-    response = client.chat.complete(
-        model=MISTRAL_MODEL,
-        messages=[{"role": "user", "content": rendered_prompt}],
-        temperature=0.7,
-        max_tokens=2048,
-    )
-    message = response.choices[0].message
-    raw_text = str(message.content) if message and message.content else ""
+    raw_text = call_mistral(rendered_prompt, temperature=0.7, max_tokens=2048)
 
     parsed = _extract_json(raw_text)
     raw_metrics: dict[str, Any] = parsed.get("metrics", {})

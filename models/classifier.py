@@ -48,7 +48,11 @@ def prepare_sample(raw: dict[str, Any]) -> pd.DataFrame:
     for col in FEATURE_COLS:
         val = raw.get(col, np.nan)
         if col in CAT_FEATURES:
-            row[col] = str(val) if val is not None and not (isinstance(val, float) and np.isnan(val)) else "nan"
+            row[col] = (
+                str(val)
+                if val is not None and not (isinstance(val, float) and np.isnan(val))
+                else "nan"
+            )
         else:
             try:
                 row[col] = float(val)
@@ -83,7 +87,9 @@ def _top5_shap(
                 "feature": feat_name,
                 "value": sample_df.iloc[0][feat_name],
                 "shap": round(float(shap_val), 5),
-                "direction": "▲ в пользу сегмента" if shap_val > 0 else "▼ против сегмента",
+                "direction": "▲ в пользу сегмента"
+                if shap_val > 0
+                else "▼ против сегмента",
                 "description": FEATURE_DESCRIPTIONS.get(feat_name, feat_name),
             }
         )

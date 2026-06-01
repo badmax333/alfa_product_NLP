@@ -1,10 +1,17 @@
-"""Mistral API клиент."""
+"""Mistral API клиент с автоматическим повтором при ошибках 429."""
 
 import os
+import random
+import time
 
 from mistralai.client import Mistral
 
 _client: Mistral | None = None
+
+# --- Параметры повтора при rate-limit ---
+_MAX_RETRIES = 6  # максимум попыток
+_BACKOFF_INITIAL = 10.0  # начальная пауза, секунды
+_BACKOFF_MAX = 64.0  # максимальная пауза, секунды
 
 
 def get_mistral_client() -> Mistral:
@@ -19,4 +26,71 @@ def get_mistral_client() -> Mistral:
     return _client
 
 
-MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
+def _is_rate_limit(exc: Exception) -> bool:
+    """Возвращает True, если исключение вызвано превышением лимита запросов (HTTP 429)."""
+    msg = str(exc).lower()
+    return (
+        "429" in msg
+        or "rate limit" in msg
+        or "too many requests" in msg
+        or "ratelimit" in msg
+        or "requests per" in msg
+    )
+
+
+def call_mistral(
+    prompt: str,
+    temperature: float = 0.7,
+    max_tokens: int = 1200,
+) -> str | None:
+    """
+    Отправляет запрос в Mistral Chat API и возвращает текст ответа.
+
+    При получении ошибки 429 (превышен лимит запросов) функция автоматически
+    ждёт и повторяет запрос с экспоненциальным backoff + случайным jitter:
+      попытка 1 → ждёт ~2с
+      попытка 2 → ждёт ~4с
+      попытка 3 → ждёт ~8с  ... до _BACKOFF_MAX
+
+    Все остальные ошибки (5xx, сетевые, ошибки JSON) выбрасываются сразу
+    без повтора — они не связаны с rate limit.
+
+    Args:
+        prompt: текст запроса.
+        temperature: температура сэмплинга (0.0–1.0).
+        max_tokens: максимальное количество токенов в ответе.
+
+    Returns:
+        Текст ответа от Mistral.
+
+    Raises:
+        RuntimeError: если MISTRAL_API_KEY не задан.
+        Exception: если все _MAX_RETRIES попыток исчерпаны или ошибка не rate-limit.
+    """
+    client = get_mistral_client()
+    backoff = _BACKOFF_INITIAL
+
+    for attempt in range(_MAX_RETRIES):
+        model = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
+        try:
+            response = client.chat.complete(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            message = response.choices[0].message
+            return str(message.content) if message and message.content else ""
+
+        except Exception as exc:
+            if _is_rate_limit(exc) and attempt < _MAX_RETRIES - 1:
+                wait = backoff + random.uniform(0.0, 1.0)
+                print(
+                    f"\n[mistral] 429 Rate limit — жду {wait:.1f}с "
+                    f"(попытка {attempt + 1}/{_MAX_RETRIES})",
+                    flush=True,
+                )
+                time.sleep(wait)
+                backoff = min(backoff * 2, _BACKOFF_MAX)
+            else:
+                raise

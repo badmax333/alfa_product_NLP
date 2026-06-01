@@ -11,7 +11,7 @@
     <div class="logo" aria-hidden="true">А</div>
     <div class="header-text">
       <h1>Smart Onboarding</h1>
-      <p>Smart pipeline · Классификация → Sales-аргумент → Метрики → Склонность к продуктам</p>
+      <p>Stage 1: Классификация → Sales-аргумент → Метрики · Stage 2: Склонность → Sales-аргумент → Метрики</p>
     </div>
   </header>
 
@@ -19,22 +19,32 @@
   <nav class="tabs-nav">
     <button class="tab-btn active" data-tab="classify">
       <span class="tab-num">1</span>
-      <span class="tab-label">Классификация</span>
+      <span class="tab-label">Stage 1 — Классификация</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="sales" id="tab-btn-sales">
       <span class="tab-num">2</span>
-      <span class="tab-label">Sales-аргумент</span>
+      <span class="tab-label">Stage 1 — Sales-аргумент</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="metrics" id="tab-btn-metrics">
       <span class="tab-num">3</span>
-      <span class="tab-label">Метрики взаимодействия</span>
+      <span class="tab-label">Stage 1 — Метрики</span>
     </button>
     <div class="tab-arrow">→</div>
     <button class="tab-btn" data-tab="propensity" id="tab-btn-propensity">
       <span class="tab-num">4</span>
-      <span class="tab-label">Склонность к продуктам</span>
+      <span class="tab-label">Stage 2 — Склонность</span>
+    </button>
+    <div class="tab-arrow">→</div>
+    <button class="tab-btn" data-tab="stage2-sales" id="tab-btn-stage2-sales">
+      <span class="tab-num">5</span>
+      <span class="tab-label">Stage 2 — Sales-аргумент</span>
+    </button>
+    <div class="tab-arrow">→</div>
+    <button class="tab-btn" data-tab="stage2-metrics" id="tab-btn-stage2-metrics">
+      <span class="tab-num">6</span>
+      <span class="tab-label">Stage 2 — Метрики</span>
     </button>
   </nav>
 
@@ -143,25 +153,18 @@
 
       <!-- Колонка 2: Промпт для Mistral -->
       <section class="card col-prompt">
-        <h2>Канал взаимодействия</h2>
-        <p class="hint">Выберите канал — набор метрик изменится. Ниже показан промпт, который отправляется в Mistral.</p>
+        <h2>Метод генерации метрик</h2>
+        <p class="hint">Канал определяется автоматически по типу взаимодействия из шага 2. Ниже показан промпт, который отправляется в Mistral.</p>
 
-        <div class="channel-toggle">
-          <button class="channel-btn active" data-channel="digital" onclick="selectChannel('digital')">
-            Цифровой
-          </button>
-          <button class="channel-btn" data-channel="voice" onclick="selectChannel('voice')">
-            Голосовой
-          </button>
-        </div>
+        <div id="metrics-channel-info" class="channel-info digital">Канал: Цифровой канал</div>
 
-        <p class="form-title" style="margin-top:1rem">Метод генерации</p>
+        <p class="form-title">Метод генерации</p>
         <div class="method-toggle">
           <button class="method-btn active" data-method="llm" onclick="selectMethod('llm')">
-            Mistral LLM
+            LLM
           </button>
           <button class="method-btn" data-method="random" onclick="selectMethod('random')">
-            Случайно (локально)
+            Случайно
           </button>
         </div>
 
@@ -223,6 +226,13 @@
         <button class="btn-primary" id="btn-score-propensity" onclick="scorePropensity()">
           Сгенерировать фичи и рассчитать склонность
         </button>
+
+        <div id="to-stage2-bar" class="next-step-bar hidden">
+          <span>Продукты определены — перейдите к Stage 2</span>
+          <button class="btn-secondary" onclick="switchTab('stage2-sales')">
+            Stage 2 →
+          </button>
+        </div>
       </section>
 
       <section class="card col-metrics">
@@ -231,6 +241,119 @@
           Нажмите «Рассчитать склонность»
         </div>
         <div id="propensity-content" class="hidden"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- ВКЛАДКА 5: Stage 2 — Sales-аргумент                     -->
+  <!-- ======================================================= -->
+  <div id="tab-stage2-sales" class="tab-content hidden">
+    <main class="layout layout-3col">
+
+      <!-- Колонка 1: Контекст -->
+      <section class="card col-client-profile">
+        <h2>Контекст взаимодействия</h2>
+        <div id="s2sales-no-prev" class="placeholder">
+          Сначала рассчитайте склонность к продуктам на шаге 4
+        </div>
+        <div id="s2sales-context" class="hidden"></div>
+      </section>
+
+      <!-- Колонка 2: Продукт + тип + промпт -->
+      <section class="card col-prompt">
+        <h2>Продукт и тип взаимодействия</h2>
+        <p class="hint">Выберите продукт из top-3 склонности и формат аргумента. Промпт Stage 2 показан ниже.</p>
+
+        <p class="form-title">Продукт (из модели склонности)</p>
+        <div id="s2-product-btns" class="interaction-type-btns"></div>
+
+        <div class="divider"></div>
+
+        <p class="form-title">Тип взаимодействия</p>
+        <div id="s2-interaction-type-btns" class="interaction-type-btns"></div>
+
+        <div class="divider"></div>
+
+        <h3 class="form-title">Промпт для LLM (Stage 2)</h3>
+        <div id="s2-sales-prompt-box" class="prompt-box">
+          <pre id="s2-sales-prompt-text" class="prompt-text">Выберите продукт и тип взаимодействия</pre>
+        </div>
+
+        <button class="btn-primary" id="btn-generate-s2-argument" onclick="generateStage2Argument()">
+          Сгенерировать аргумент Stage 2
+        </button>
+      </section>
+
+      <!-- Колонка 3: Результат Stage 2 аргумента -->
+      <section class="card col-argument">
+        <h2>Sales-аргумент Stage 2</h2>
+        <div id="s2-argument-placeholder" class="placeholder">
+          Выберите продукт и тип взаимодействия, затем нажмите «Сгенерировать»
+        </div>
+        <div id="s2-argument-content" class="hidden"></div>
+
+        <div id="to-s2-metrics-bar" class="next-step-bar hidden">
+          <span>Аргумент готов — оцените реакцию клиента</span>
+          <button class="btn-secondary" onclick="switchTab('stage2-metrics')">
+            Метрики Stage 2 →
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- ВКЛАДКА 6: Stage 2 — Метрики взаимодействия             -->
+  <!-- ======================================================= -->
+  <div id="tab-stage2-metrics" class="tab-content hidden">
+    <main class="layout layout-3col">
+
+      <!-- Колонка 1: Клиент + аргумент Stage 2 -->
+      <section class="card col-client-profile">
+        <h2>Клиент и аргумент Stage 2</h2>
+        <div id="s2metrics-no-prev" class="placeholder">
+          Сначала сгенерируйте Sales-аргумент Stage 2 на шаге 5
+        </div>
+        <div id="s2metrics-client-summary" class="hidden"></div>
+      </section>
+
+      <!-- Колонка 2: Метод + промпт -->
+      <section class="card col-prompt">
+        <h2>Метод генерации метрик</h2>
+        <p class="hint">Канал определяется автоматически по типу взаимодействия Stage 2.</p>
+
+        <div id="s2metrics-channel-info" class="channel-info digital">Канал: Цифровой канал</div>
+
+        <p class="form-title">Метод генерации</p>
+        <div class="method-toggle">
+          <button class="method-btn active" data-method="llm" onclick="selectS2Method('llm')">
+            LLM
+          </button>
+          <button class="method-btn" data-method="random" onclick="selectS2Method('random')">
+            Случайно
+          </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3 class="form-title">Промпт для Mistral</h3>
+        <div id="s2-metrics-prompt-box" class="prompt-box">
+          <pre id="s2-metrics-prompt-text" class="prompt-text">Промпт отобразится после перехода на этот шаг</pre>
+        </div>
+
+        <button class="btn-primary" id="btn-generate-s2-metrics" onclick="generateStage2Metrics()">
+          Сгенерировать метрики Stage 2
+        </button>
+      </section>
+
+      <!-- Колонка 3: Результат метрик Stage 2 -->
+      <section class="card col-metrics">
+        <h2>Реакция клиента (Stage 2)</h2>
+        <div id="s2-metrics-placeholder" class="placeholder">
+          Нажмите «Сгенерировать метрики Stage 2»
+        </div>
+        <div id="s2-metrics-content" class="hidden"></div>
       </section>
     </main>
   </div>

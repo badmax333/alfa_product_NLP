@@ -46,7 +46,9 @@ def _generate_digital_values(interest: float, affinity: float) -> dict[str, Any]
     product_page_visited = _b(0.75) if banner_clicked else _b(0.04 * interest)
     time_on_page = random.randint(20, 300) if product_page_visited else 0
     scroll_depth = round(random.uniform(20, 100), 1) if product_page_visited else 0.0
-    remind_later = _b(0.12 * interest) if product_page_visited and not banner_clicked else 0
+    remind_later = (
+        _b(0.12 * interest) if product_page_visited and not banner_clicked else 0
+    )
     repeated_views = random.randint(0, 3) if product_page_visited else 0
 
     application_started = _b(0.35 * interest) if product_page_visited else 0
@@ -146,7 +148,9 @@ def generate_metrics_random(
     profile = PORTRAIT_BEHAVIORAL_PROFILES.get(portrait_id, {})
 
     interest_base = profile.get("interest_base", 0.60)
-    interest_score = round(min(1.0, max(0.05, interest_base + random.gauss(0, 0.08))), 2)
+    interest_score = round(
+        min(1.0, max(0.05, interest_base + random.gauss(0, 0.08))), 2
+    )
 
     affinity_key = profile.get(
         "digital_affinity" if channel == "digital" else "voice_affinity", "medium"

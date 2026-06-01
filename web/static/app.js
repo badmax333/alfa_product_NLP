@@ -9,12 +9,18 @@ let clientFeatures = {};            // последние значения фо�
 
 let salesArgsConfig = null;         // interaction types + examples
 let selectedInteractionType = null; // "banner" | "push" | "voice"
-let selectedArgument = null;        // сгенерированный sales-аргумент
+let selectedArgument = null;        // сгенерированный sales-аргумент Stage 1
 
-let selectedChannel = "digital";    // "digital" | "voice"
-let selectedMethod = "llm";         // "llm" | "random"
-let metricsResult = null;           // результат /api/v1/metrics/generate
+let selectedMethod = "llm";         // "llm" | "random" для Stage 1 метрик
+let metricsResult = null;           // результат /api/v1/metrics/generate (Stage 1)
 let propensityResult = null;        // результат /api/v1/propensity/score
+
+// Stage 2 state
+let selectedPropensityProduct = null; // выбранный продукт из top_products
+let stage2InteractionType = null;     // "banner" | "push" | "voice" для Stage 2
+let stage2Argument = null;            // сгенерированный sales-аргумент Stage 2
+let selectedS2Method = "llm";         // "llm" | "random" для Stage 2 метрик
+let stage2MetricsResult = null;       // результат генерации метрик Stage 2
 
 // ============================================================
 // Tab navigation
@@ -31,6 +37,8 @@ function switchTab(tabId) {
   if (tabId === "sales") onEnterSalesTab();
   if (tabId === "metrics") onEnterMetricsTab();
   if (tabId === "propensity") onEnterPropensityTab();
+  if (tabId === "stage2-sales") onEnterStage2SalesTab();
+  if (tabId === "stage2-metrics") onEnterStage2MetricsTab();
 }
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -136,7 +144,6 @@ function collectPayload() {
   return payload;
 }
 
-// Человекочитаемое значение поля (берёт label из field_options если есть)
 function displayValue(name, val) {
   if (val === undefined || val === null || val === "") return "—";
   const opts = config.field_options && config.field_options[name];
@@ -147,7 +154,6 @@ function displayValue(name, val) {
   return String(val);
 }
 
-// HTML-строки для 8 редактируемых признаков клиента
 function renderClientFeaturesRows() {
   return config.editable_features
     .map((name) => {
@@ -251,8 +257,13 @@ document.getElementById("predict-form").addEventListener("submit", async (e) => 
     selectedArgument = null;
     metricsResult = null;
     propensityResult = null;
+    stage2Argument = null;
+    stage2MetricsResult = null;
+    selectedPropensityProduct = null;
     document.getElementById("tab-btn-metrics").classList.remove("done");
     document.getElementById("tab-btn-propensity").classList.remove("done");
+    document.getElementById("tab-btn-stage2-sales").classList.remove("done");
+    document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
     renderClassificationResult(classificationResult);
   } catch (err) {
     showClassifyError(err.message || "Ошибка классификации");
@@ -263,7 +274,7 @@ document.getElementById("predict-form").addEventListener("submit", async (e) => 
 });
 
 // ============================================================
-// TAB 2 — Sales argument
+// TAB 2 — Sales argument (Stage 1)
 // ============================================================
 async function loadSalesArgsConfig() {
   if (salesArgsConfig) return;
@@ -343,7 +354,10 @@ function selectInteractionType(typeId) {
   selectedArgument = null;
   metricsResult = null;
   propensityResult = null;
-  document.querySelectorAll(".itype-btn").forEach((btn) => {
+  stage2Argument = null;
+  stage2MetricsResult = null;
+  selectedPropensityProduct = null;
+  document.querySelectorAll("#interaction-type-btns .itype-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.itype === typeId);
   });
   document.getElementById("argument-content").classList.add("hidden");
@@ -353,6 +367,8 @@ function selectInteractionType(typeId) {
     "Нажмите «Сгенерировать аргумент», чтобы получить персонализированный текст";
   document.getElementById("tab-btn-metrics").classList.remove("done");
   document.getElementById("tab-btn-propensity").classList.remove("done");
+  document.getElementById("tab-btn-stage2-sales").classList.remove("done");
+  document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
   updateSalesPrompt();
 }
 
@@ -410,6 +426,8 @@ async function generateSalesArgument() {
     selectedArgument = await res.json();
     metricsResult = null;
     propensityResult = null;
+    stage2Argument = null;
+    stage2MetricsResult = null;
     renderArgumentCard(selectedArgument);
 
     if (selectedArgument.rendered_prompt) {
@@ -419,6 +437,8 @@ async function generateSalesArgument() {
     document.getElementById("to-metrics-bar").classList.remove("hidden");
     document.getElementById("tab-btn-metrics").classList.add("done");
     document.getElementById("tab-btn-propensity").classList.remove("done");
+    document.getElementById("tab-btn-stage2-sales").classList.remove("done");
+    document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
   } catch (err) {
     placeholder.classList.remove("hidden");
     placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка генерации аргумента"}</div>`;
@@ -456,8 +476,13 @@ function renderArgumentCard(arg) {
 }
 
 // ============================================================
-// TAB 3 — Metrics generation
+// TAB 3 — Metrics generation (Stage 1)
+// Канал определяется автоматически из interaction_type Stage 1
 // ============================================================
+function channelFromInteractionType(interactionType) {
+  return interactionType === "voice" ? "voice" : "digital";
+}
+
 function onEnterMetricsTab() {
   const hasAll = classificationResult && selectedArgument;
   document.getElementById("metrics-no-prev").classList.toggle("hidden", hasAll);
@@ -465,8 +490,21 @@ function onEnterMetricsTab() {
 
   if (!hasAll) return;
 
+  const channel =
+    selectedArgument.channel ||
+    channelFromInteractionType(selectedArgument.interaction_type || selectedInteractionType);
+  updateChannelDisplay("metrics-channel-info", channel);
+
   renderMetricsClientSummary();
   updateMetricsPromptPreview();
+}
+
+function updateChannelDisplay(elementId, channel) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const label = channel === "digital" ? "Цифровой канал" : "Голосовой канал";
+  el.className = `channel-info ${channel}`;
+  el.textContent = `Канал: ${label}`;
 }
 
 function renderMetricsClientSummary() {
@@ -503,7 +541,7 @@ function renderMetricsClientSummary() {
 
       <div class="divider"></div>
 
-      <p class="section-label">Sales-аргумент</p>
+      <p class="section-label">Sales-аргумент Stage 1</p>
       <span class="argument-channel-badge ${arg.channel === "digital" ? "badge-digital" : "badge-voice"}"
             style="margin-bottom:0.5rem;display:inline-flex">
         ${itype?.label || arg.interaction_type}
@@ -514,17 +552,9 @@ function renderMetricsClientSummary() {
   `;
 }
 
-function selectChannel(channel) {
-  selectedChannel = channel;
-  document.querySelectorAll(".channel-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.channel === channel);
-  });
-  updateMetricsPromptPreview();
-}
-
 function selectMethod(method) {
   selectedMethod = method;
-  document.querySelectorAll(".method-btn").forEach((btn) => {
+  document.querySelectorAll("#tab-metrics .method-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.method === method);
   });
   const generateBtn = document.getElementById("btn-generate-metrics");
@@ -536,6 +566,7 @@ function selectMethod(method) {
 
 async function updateMetricsPromptPreview() {
   if (!classificationResult || !selectedArgument) return;
+  const channel = selectedArgument.channel || "digital";
   const promptEl = document.getElementById("metrics-prompt-text");
   promptEl.textContent = "Загружаем промпт…";
 
@@ -546,7 +577,7 @@ async function updateMetricsPromptPreview() {
       body: JSON.stringify({
         classification: classificationResult,
         sales_argument: selectedArgument,
-        channel: selectedChannel,
+        channel: channel,
         client_features: clientFeatures,
       }),
     });
@@ -564,6 +595,7 @@ async function generateMetrics() {
     return;
   }
 
+  const channel = selectedArgument.channel || "digital";
   const btn = document.getElementById("btn-generate-metrics");
   btn.disabled = true;
   btn.textContent = "Генерируем…";
@@ -574,21 +606,23 @@ async function generateMetrics() {
   document.getElementById("metrics-content").classList.add("hidden");
   document.getElementById("to-propensity-bar").classList.add("hidden");
   propensityResult = null;
+  stage2Argument = null;
+  stage2MetricsResult = null;
   document.getElementById("tab-btn-propensity").classList.remove("done");
+  document.getElementById("tab-btn-stage2-sales").classList.remove("done");
+  document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
 
   try {
-    const payload = {
-      classification: classificationResult,
-      sales_argument: selectedArgument,
-      channel: selectedChannel,
-      client_features: clientFeatures,
-      method: selectedMethod,
-    };
-
     const res = await fetch("/api/v1/metrics/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        classification: classificationResult,
+        sales_argument: selectedArgument,
+        channel: channel,
+        client_features: clientFeatures,
+        method: selectedMethod,
+      }),
     });
 
     if (!res.ok) {
@@ -598,12 +632,11 @@ async function generateMetrics() {
 
     metricsResult = await res.json();
 
-    // Обновляем промпт из rendered_prompt только для LLM-режима
     if (selectedMethod === "llm") {
       document.getElementById("metrics-prompt-text").textContent = metricsResult.rendered_prompt;
     }
 
-    renderMetricsResult(metricsResult);
+    renderMetricsResult(metricsResult, "metrics-placeholder", "metrics-content");
     document.getElementById("to-propensity-bar").classList.remove("hidden");
   } catch (err) {
     document.getElementById("metrics-placeholder").classList.remove("hidden");
@@ -617,9 +650,10 @@ async function generateMetrics() {
   }
 }
 
-function renderMetricsResult(data) {
-  document.getElementById("metrics-placeholder").classList.add("hidden");
-  const box = document.getElementById("metrics-content");
+// Общая функция рендеринга результатов метрик (переиспользуется для Stage 1 и Stage 2)
+function renderMetricsResult(data, placeholderId, boxId) {
+  document.getElementById(placeholderId).classList.add("hidden");
+  const box = document.getElementById(boxId);
   box.classList.remove("hidden");
 
   const scorePct = Math.round(data.interest_score * 100);
@@ -708,6 +742,8 @@ function onEnterPropensityTab() {
   updatePropensityFeaturePrompt();
   if (propensityResult) {
     renderPropensityResult(propensityResult);
+    document.getElementById("to-stage2-bar").classList.remove("hidden");
+    document.getElementById("tab-btn-stage2-sales").classList.add("done");
   }
 }
 
@@ -724,13 +760,13 @@ function renderPropensityContext() {
         <span class="profile-name">${r.class_description}</span>
       </div>
 
-      <p class="section-label">Предыдущее взаимодействие</p>
+      <p class="section-label">Реакция на Stage 1</p>
       <div class="interest-score-box compact">
         <div class="interest-score-value">${interestPct}%</div>
-        <div class="interest-score-label">интерес к аргументу</div>
+        <div class="interest-score-label">интерес к аргументу Stage 1</div>
       </div>
 
-      <p class="section-label">Sales-аргумент</p>
+      <p class="section-label">Sales-аргумент Stage 1</p>
       <p style="font-weight:600;margin:0.35rem 0 0.25rem;font-size:0.92rem">${arg.headline}</p>
       <div class="metrics-argument-preview">${arg.body}</div>
 
@@ -782,6 +818,12 @@ async function scorePropensity() {
   placeholder.classList.remove("hidden");
   placeholder.textContent = "Mistral генерирует признаки клиента для модели склонности…";
   document.getElementById("propensity-content").classList.add("hidden");
+  document.getElementById("to-stage2-bar").classList.add("hidden");
+  stage2Argument = null;
+  stage2MetricsResult = null;
+  selectedPropensityProduct = null;
+  document.getElementById("tab-btn-stage2-sales").classList.remove("done");
+  document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
 
   try {
     const res = await fetch("/api/v1/propensity/score", {
@@ -800,6 +842,8 @@ async function scorePropensity() {
       propensityResult.feature_generation_prompt || "";
     renderPropensityResult(propensityResult);
     document.getElementById("tab-btn-propensity").classList.add("done");
+    document.getElementById("to-stage2-bar").classList.remove("hidden");
+    document.getElementById("tab-btn-stage2-sales").classList.add("done");
   } catch (err) {
     placeholder.classList.remove("hidden");
     placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка скоринга склонности"}</div>`;
@@ -903,6 +947,370 @@ function renderPropensityResult(data) {
     </div>
     ${cards}
   `;
+}
+
+// ============================================================
+// TAB 5 — Stage 2 Sales Argument
+// ============================================================
+function onEnterStage2SalesTab() {
+  const hasPropensity = classificationResult && selectedArgument && metricsResult && propensityResult;
+  document.getElementById("s2sales-no-prev").classList.toggle("hidden", hasPropensity);
+  document.getElementById("s2sales-context").classList.toggle("hidden", !hasPropensity);
+
+  if (!hasPropensity) return;
+
+  renderS2Context();
+
+  loadSalesArgsConfig().then(() => {
+    renderS2ProductButtons();
+    renderS2InteractionTypeButtons();
+    if (selectedPropensityProduct && stage2InteractionType) {
+      updateStage2Prompt();
+    }
+  });
+}
+
+function renderS2Context() {
+  const r = classificationResult;
+  const arg = selectedArgument;
+  const interestPct = metricsResult ? Math.round(metricsResult.interest_score * 100) : 0;
+
+  document.getElementById("s2sales-context").innerHTML = `
+    <div class="profile-summary">
+      <p class="section-label">Портрет клиента</p>
+      <div class="profile-badge">
+        <span class="profile-class">${r.predicted_class}</span>
+        <span class="profile-name">${r.class_description}</span>
+      </div>
+
+      <p class="section-label">Реакция на Stage 1</p>
+      <div class="interest-score-box compact">
+        <div class="interest-score-value">${interestPct}%</div>
+        <div class="interest-score-label">${metricsResult?.user_reaction_text || "интерес к аргументу"}</div>
+      </div>
+
+      <p class="section-label">Аргумент Stage 1</p>
+      <p style="font-weight:600;margin:0.35rem 0 0.25rem;font-size:0.92rem">${arg.headline}</p>
+      <div class="metrics-argument-preview">${arg.body}</div>
+
+      <p class="section-label">Ключевые признаки</p>
+      <ul class="profile-features">${renderClientFeaturesRows()}</ul>
+    </div>
+  `;
+}
+
+function renderS2ProductButtons() {
+  const container = document.getElementById("s2-product-btns");
+  container.innerHTML = "";
+  const products = propensityResult?.top_products || [];
+  products.forEach((p) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "itype-btn" + (selectedPropensityProduct?.product_id === p.product_id ? " active" : "");
+    btn.dataset.productId = p.product_id;
+    const scorePct = Math.round(p.propensity_score * 100);
+    btn.innerHTML = `<strong>#${p.rank} ${p.product_name}</strong><span>Склонность: ${scorePct}%</span>`;
+    btn.addEventListener("click", () => selectS2Product(p));
+    container.appendChild(btn);
+  });
+}
+
+function selectS2Product(product) {
+  selectedPropensityProduct = product;
+  stage2Argument = null;
+  stage2MetricsResult = null;
+  document.querySelectorAll("#s2-product-btns .itype-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.productId === product.product_id);
+  });
+  document.getElementById("s2-argument-content").classList.add("hidden");
+  document.getElementById("to-s2-metrics-bar").classList.add("hidden");
+  document.getElementById("s2-argument-placeholder").classList.remove("hidden");
+  document.getElementById("s2-argument-placeholder").textContent =
+    "Выберите тип взаимодействия и нажмите «Сгенерировать»";
+  document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  if (stage2InteractionType) updateStage2Prompt();
+}
+
+function renderS2InteractionTypeButtons() {
+  const container = document.getElementById("s2-interaction-type-btns");
+  container.innerHTML = "";
+  (salesArgsConfig?.interaction_types || []).forEach((t) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "itype-btn" + (stage2InteractionType === t.id ? " active" : "");
+    btn.dataset.itype = t.id;
+    btn.innerHTML = `<strong>${t.label}</strong><span>${t.description}</span>`;
+    btn.addEventListener("click", () => selectS2InteractionType(t.id));
+    container.appendChild(btn);
+  });
+}
+
+function selectS2InteractionType(typeId) {
+  stage2InteractionType = typeId;
+  stage2Argument = null;
+  stage2MetricsResult = null;
+  document.querySelectorAll("#s2-interaction-type-btns .itype-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.itype === typeId);
+  });
+  document.getElementById("s2-argument-content").classList.add("hidden");
+  document.getElementById("to-s2-metrics-bar").classList.add("hidden");
+  document.getElementById("s2-argument-placeholder").classList.remove("hidden");
+  document.getElementById("s2-argument-placeholder").textContent =
+    "Выберите продукт и нажмите «Сгенерировать»";
+  document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  if (selectedPropensityProduct) updateStage2Prompt();
+}
+
+async function updateStage2Prompt() {
+  if (!classificationResult || !selectedPropensityProduct || !stage2InteractionType) return;
+  const promptEl = document.getElementById("s2-sales-prompt-text");
+  promptEl.textContent = "Загружаем промпт…";
+
+  try {
+    const res = await fetch("/api/v1/sales-args/render-prompt-stage2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: classificationResult,
+        interaction_type: stage2InteractionType,
+        client_features: clientFeatures,
+        propensity_product: selectedPropensityProduct,
+        stage1_argument: selectedArgument,
+        stage1_metrics: metricsResult,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    promptEl.textContent = data.rendered_prompt;
+  } catch {
+    promptEl.textContent = "Ошибка загрузки промпта Stage 2";
+  }
+}
+
+async function generateStage2Argument() {
+  if (!classificationResult || !selectedPropensityProduct || !stage2InteractionType) {
+    alert("Выберите продукт и тип взаимодействия");
+    return;
+  }
+
+  const btn = document.getElementById("btn-generate-s2-argument");
+  const placeholder = document.getElementById("s2-argument-placeholder");
+  btn.disabled = true;
+  btn.textContent = "Генерируем…";
+  placeholder.classList.remove("hidden");
+  placeholder.textContent = "Отправляем запрос в Mistral…";
+  document.getElementById("s2-argument-content").classList.add("hidden");
+  document.getElementById("to-s2-metrics-bar").classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/v1/sales-args/generate-stage2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: classificationResult,
+        interaction_type: stage2InteractionType,
+        client_features: clientFeatures,
+        propensity_product: selectedPropensityProduct,
+        stage1_argument: selectedArgument,
+        stage1_metrics: metricsResult,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Ошибка ${res.status}`);
+    }
+
+    stage2Argument = await res.json();
+    stage2MetricsResult = null;
+
+    if (stage2Argument.rendered_prompt) {
+      document.getElementById("s2-sales-prompt-text").textContent = stage2Argument.rendered_prompt;
+    }
+
+    renderStage2ArgumentCard(stage2Argument);
+    document.getElementById("to-s2-metrics-bar").classList.remove("hidden");
+    document.getElementById("tab-btn-stage2-metrics").classList.add("done");
+  } catch (err) {
+    placeholder.classList.remove("hidden");
+    placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка генерации Stage 2 аргумента"}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Сгенерировать аргумент Stage 2";
+  }
+}
+
+function renderStage2ArgumentCard(arg) {
+  document.getElementById("s2-argument-placeholder").classList.add("hidden");
+  const box = document.getElementById("s2-argument-content");
+  box.classList.remove("hidden");
+
+  const badgeClass = arg.channel === "digital" ? "badge-digital" : "badge-voice";
+  const channelLabel = arg.channel === "digital" ? "Цифровой канал" : "Голосовой канал";
+  const itypeLabel =
+    salesArgsConfig.interaction_types.find((t) => t.id === arg.interaction_type)?.label ||
+    arg.interaction_type;
+
+  const propScorePct =
+    arg.propensity_score != null
+      ? `<p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.5rem">Склонность: <strong style="color:var(--alfa-red)">${Math.round(arg.propensity_score * 100)}%</strong></p>`
+      : "";
+
+  box.innerHTML = `
+    <div class="argument-card">
+      <div>
+        <span class="argument-channel-badge ${badgeClass}">${channelLabel} · ${itypeLabel}</span>
+      </div>
+      ${propScorePct}
+      <p class="argument-headline">${arg.headline}</p>
+      <p class="argument-body">${arg.body}</p>
+      ${arg.cta ? `<span class="argument-cta">${arg.cta}</span>` : ""}
+      <div class="argument-note">
+        <strong>Примечание к аргументу</strong>
+        ${arg.note}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// TAB 6 — Stage 2 Metrics
+// Канал определяется автоматически из interaction_type Stage 2
+// ============================================================
+function onEnterStage2MetricsTab() {
+  const hasS2Arg = classificationResult && stage2Argument;
+  document.getElementById("s2metrics-no-prev").classList.toggle("hidden", hasS2Arg);
+  document.getElementById("s2metrics-client-summary").classList.toggle("hidden", !hasS2Arg);
+
+  if (!hasS2Arg) return;
+
+  const s2Channel =
+    stage2Argument.channel ||
+    channelFromInteractionType(stage2Argument.interaction_type || stage2InteractionType);
+  updateChannelDisplay("s2metrics-channel-info", s2Channel);
+
+  renderS2MetricsClientSummary();
+  updateS2MetricsPromptPreview();
+}
+
+function renderS2MetricsClientSummary() {
+  const r = classificationResult;
+  const arg = stage2Argument;
+  const itype = salesArgsConfig?.interaction_types.find((t) => t.id === arg.interaction_type);
+
+  document.getElementById("s2metrics-client-summary").innerHTML = `
+    <div class="profile-summary">
+      <p class="section-label">Портрет</p>
+      <div class="profile-badge">
+        <span class="profile-class">${r.predicted_class}</span>
+        <span class="profile-name">${r.class_description}</span>
+      </div>
+
+      <p class="section-label">Продукт Stage 2</p>
+      <div class="profile-product">${arg.product_name}${arg.product_ame ? ` (AME-${arg.product_ame})` : ""}</div>
+
+      <p class="section-label">Sales-аргумент Stage 2</p>
+      <span class="argument-channel-badge ${arg.channel === "digital" ? "badge-digital" : "badge-voice"}"
+            style="margin-bottom:0.5rem;display:inline-flex">
+        ${itype?.label || arg.interaction_type}
+      </span>
+      <p style="font-weight:600;margin:0.35rem 0 0.25rem;font-size:0.92rem">${arg.headline}</p>
+      <div class="metrics-argument-preview">${arg.body}</div>
+    </div>
+  `;
+}
+
+function selectS2Method(method) {
+  selectedS2Method = method;
+  document.querySelectorAll("#tab-stage2-metrics .method-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.method === method);
+  });
+  const generateBtn = document.getElementById("btn-generate-s2-metrics");
+  if (generateBtn) {
+    generateBtn.textContent =
+      method === "llm" ? "Сгенерировать метрики Stage 2 (LLM)" : "Сгенерировать (локально)";
+  }
+}
+
+async function updateS2MetricsPromptPreview() {
+  if (!classificationResult || !stage2Argument) return;
+  const channel = stage2Argument.channel || "digital";
+  const promptEl = document.getElementById("s2-metrics-prompt-text");
+  promptEl.textContent = "Загружаем промпт…";
+
+  try {
+    const res = await fetch("/api/v1/metrics/render-prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: classificationResult,
+        sales_argument: stage2Argument,
+        channel: channel,
+        client_features: clientFeatures,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    promptEl.textContent = data.rendered_prompt;
+  } catch {
+    promptEl.textContent = "Ошибка загрузки промпта";
+  }
+}
+
+async function generateStage2Metrics() {
+  if (!classificationResult || !stage2Argument) {
+    alert("Сначала сгенерируйте Stage 2 аргумент");
+    return;
+  }
+
+  const channel = stage2Argument.channel || "digital";
+  const btn = document.getElementById("btn-generate-s2-metrics");
+  btn.disabled = true;
+  btn.textContent = "Генерируем…";
+
+  document.getElementById("s2-metrics-placeholder").classList.remove("hidden");
+  document.getElementById("s2-metrics-placeholder").textContent =
+    selectedS2Method === "llm" ? "Отправляем запрос в Mistral…" : "Генерируем локально…";
+  document.getElementById("s2-metrics-content").classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/v1/metrics/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classification: classificationResult,
+        sales_argument: stage2Argument,
+        channel: channel,
+        client_features: clientFeatures,
+        method: selectedS2Method,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Ошибка ${res.status}`);
+    }
+
+    stage2MetricsResult = await res.json();
+
+    if (selectedS2Method === "llm") {
+      document.getElementById("s2-metrics-prompt-text").textContent =
+        stage2MetricsResult.rendered_prompt;
+    }
+
+    renderMetricsResult(stage2MetricsResult, "s2-metrics-placeholder", "s2-metrics-content");
+    document.getElementById("tab-btn-stage2-metrics").classList.add("done");
+  } catch (err) {
+    document.getElementById("s2-metrics-placeholder").classList.remove("hidden");
+    document.getElementById("s2-metrics-placeholder").innerHTML =
+      `<div class="error-msg">${err.message || "Ошибка генерации метрик Stage 2"}</div>`;
+    document.getElementById("s2-metrics-content").classList.add("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent =
+      selectedS2Method === "llm" ? "Сгенерировать метрики Stage 2 (LLM)" : "Сгенерировать (локально)";
+  }
 }
 
 // ============================================================

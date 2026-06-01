@@ -89,8 +89,21 @@ SEGMENT_PRODUCT_BIAS: dict[str, dict[str, float]] = {
 }
 
 RETAIL_OKVED = {47, 49, 52, 53, 55, 56}
-DIGITAL_CATEGORIES = {"digital_services", "online_ads", "software", "saas", "electronics"}
-RETAIL_CATEGORIES = {"fuel", "equipment", "electronics", "food_service", "healthcare", "grocery"}
+DIGITAL_CATEGORIES = {
+    "digital_services",
+    "online_ads",
+    "software",
+    "saas",
+    "electronics",
+}
+RETAIL_CATEGORIES = {
+    "fuel",
+    "equipment",
+    "electronics",
+    "food_service",
+    "healthcare",
+    "grocery",
+}
 TAX_CATEGORIES = {"tax_payment", "bank_operations", "misc"}
 
 PROPENSITY_FEATURE_LABELS: dict[str, str] = {

@@ -1,4 +1,4 @@
-"""Рендеринг шаблона sales-аргумента для отображения промпта в UI (Tab 2)."""
+"""Рендеринг шаблонов sales-аргументов через Jinja2 (Stage 1 и Stage 2)."""
 
 from pathlib import Path
 from typing import Any
@@ -15,27 +15,57 @@ _CHANNEL_LABELS = {"digital": "Цифровой канал", "voice": "Голо�
 _ITYPE_MAP = {t["id"]: t["label"] for t in INTERACTION_TYPES}
 
 
+def _base_render_context(
+    classification: dict[str, Any],
+    interaction_type: str,
+    client_features: dict[str, Any],
+) -> dict[str, Any]:
+    portrait_id = classification["predicted_class"]
+    profile = PORTRAIT_BEHAVIORAL_PROFILES.get(portrait_id, {})
+    itype_meta = next((t for t in INTERACTION_TYPES if t["id"] == interaction_type), {})
+    channel = itype_meta.get("channel", "digital")
+    return {
+        "portrait_id": portrait_id,
+        "portrait_name": profile.get(
+            "name", classification.get("class_description", "")
+        ),
+        "typical_behavior": profile.get("typical_behavior", ""),
+        "negative_triggers": profile.get("negative_triggers", ""),
+        "client_features": client_features,
+        "channel": channel,
+        "channel_label": _CHANNEL_LABELS.get(channel, channel),
+        "interaction_type": interaction_type,
+        "interaction_type_label": _ITYPE_MAP.get(interaction_type, interaction_type),
+    }
+
+
 def render_sales_arg_prompt(
     classification: dict[str, Any],
     interaction_type: str,
     client_features: dict[str, Any],
 ) -> str:
-    portrait_id = classification["predicted_class"]
-    profile = PORTRAIT_BEHAVIORAL_PROFILES.get(portrait_id, {})
-    itype_meta = next((t for t in INTERACTION_TYPES if t["id"] == interaction_type), {})
-    channel = itype_meta.get("channel", "digital")
+    ctx = _base_render_context(classification, interaction_type, client_features)
+    ctx["top_features"] = classification.get("top5_feature_importance", [])
+    ctx["product"] = classification.get("recommended_product", {})
+    return _jinja_env.get_template("stage1_sales_argument.j2").render(**ctx)
 
-    template = _jinja_env.get_template("stage1_sales_argument.j2")
-    return template.render(
-        portrait_id=portrait_id,
-        portrait_name=profile.get("name", classification.get("class_description", "")),
-        typical_behavior=profile.get("typical_behavior", ""),
-        negative_triggers=profile.get("negative_triggers", ""),
-        top_features=classification.get("top5_feature_importance", []),
-        client_features=client_features,
-        product=classification.get("recommended_product", {}),
-        channel=channel,
-        channel_label=_CHANNEL_LABELS.get(channel, channel),
-        interaction_type=interaction_type,
-        interaction_type_label=_ITYPE_MAP.get(interaction_type, interaction_type),
+
+def render_stage2_sales_arg_prompt(
+    classification: dict[str, Any],
+    interaction_type: str,
+    client_features: dict[str, Any],
+    propensity_product: dict[str, Any],
+    stage1_argument: dict[str, Any] | None = None,
+    stage1_metrics: dict[str, Any] | None = None,
+) -> str:
+    ctx = _base_render_context(classification, interaction_type, client_features)
+    ctx.update(
+        product_id=propensity_product.get("product_id", ""),
+        product_name=propensity_product.get("product_name", ""),
+        product_ame=propensity_product.get("product_ame"),
+        product_description=propensity_product.get("description", ""),
+        top_factors=propensity_product.get("top_factors", []),
+        stage1_argument=stage1_argument,
+        stage1_metrics=stage1_metrics,
     )
+    return _jinja_env.get_template("stage2_sales_argument.j2").render(**ctx)

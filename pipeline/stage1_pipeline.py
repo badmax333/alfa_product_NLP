@@ -20,7 +20,11 @@ sales-аргументов и метрик взаимодействия.
 import random
 from typing import Any
 
-from config.sales_arguments import INTERACTION_TYPES, MOCK_ARGUMENTS_BY_TYPE, MOCK_SALES_ARGUMENTS
+from config.sales_arguments import (
+    INTERACTION_TYPES,
+    MOCK_ARGUMENTS_BY_TYPE,
+    MOCK_SALES_ARGUMENTS,
+)
 from config.stage1 import DEFAULT_FEATURES, DEMO_PRESETS, EDITABLE_FEATURES
 from models.classifier import predict
 from services.metrics_generator import generate_metrics
@@ -77,7 +81,9 @@ def run_single(
     if interaction_type is None:
         interaction_type = random.choice([t["id"] for t in INTERACTION_TYPES])
 
-    itype_meta = next((t for t in INTERACTION_TYPES if t["id"] == interaction_type), None)
+    itype_meta = next(
+        (t for t in INTERACTION_TYPES if t["id"] == interaction_type), None
+    )
     if channel is None:
         channel = itype_meta["channel"] if itype_meta else "digital"
 
@@ -94,7 +100,9 @@ def run_single(
             client_features=client_features,
         )
     else:
-        sales_argument = MOCK_ARGUMENTS_BY_TYPE.get(interaction_type, MOCK_SALES_ARGUMENTS[0])
+        sales_argument = MOCK_ARGUMENTS_BY_TYPE.get(
+            interaction_type, MOCK_SALES_ARGUMENTS[0]
+        )
         metrics_result = generate_metrics_random(
             classification=classification,
             sales_argument=sales_argument,
