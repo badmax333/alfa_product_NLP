@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from config.stage1 import DEFAULT_FEATURES, FEATURE_LABELS
-from services.llm import MISTRAL_MODEL, get_mistral_client
+from services.llm import call_mistral_messages
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FEATURE_CONFIG_PATH = PROJECT_ROOT / "models" / "feature_config.json"
@@ -163,18 +163,14 @@ def generate_propensity_features(
         sales_argument=sales_argument,
     )
 
-    client = get_mistral_client()
-    response = client.chat.complete(
-        model=MISTRAL_MODEL,
+    raw_text = call_mistral_messages(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": rendered_prompt},
         ],
         temperature=0.35,
         max_tokens=2500,
-    )
-    message = response.choices[0].message
-    raw_text = str(message.content) if message and message.content else ""
+    ) or ""
     parsed = _extract_json(raw_text)
     features = _coerce_generated_features(
         parsed=parsed,

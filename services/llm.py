@@ -7,6 +7,7 @@ import time
 from mistralai.client import Mistral
 
 _client: Mistral | None = None
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
 
 # --- Параметры повтора при rate-limit ---
 _MAX_RETRIES = 6  # максимум попыток
@@ -38,8 +39,8 @@ def _is_rate_limit(exc: Exception) -> bool:
     )
 
 
-def call_mistral(
-    prompt: str,
+def call_mistral_messages(
+    messages: list[dict[str, str]],
     temperature: float = 0.7,
     max_tokens: int = 1200,
 ) -> str | None:
@@ -56,7 +57,7 @@ def call_mistral(
     без повтора — они не связаны с rate limit.
 
     Args:
-        prompt: текст запроса.
+        messages: список сообщений Chat API.
         temperature: температура сэмплинга (0.0–1.0).
         max_tokens: максимальное количество токенов в ответе.
 
@@ -71,11 +72,10 @@ def call_mistral(
     backoff = _BACKOFF_INITIAL
 
     for attempt in range(_MAX_RETRIES):
-        model = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
         try:
             response = client.chat.complete(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
+                model=MISTRAL_MODEL,
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
@@ -94,3 +94,16 @@ def call_mistral(
                 backoff = min(backoff * 2, _BACKOFF_MAX)
             else:
                 raise
+
+
+def call_mistral(
+    prompt: str,
+    temperature: float = 0.7,
+    max_tokens: int = 1200,
+) -> str | None:
+    """Отправляет одиночный user prompt в Mistral с retry/backoff."""
+    return call_mistral_messages(
+        messages=[{"role": "user", "content": prompt}],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
