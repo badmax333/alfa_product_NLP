@@ -7,6 +7,7 @@ import time
 from mistralai.client import Mistral
 
 _client: Mistral | None = None
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
 
 # --- Параметры повтора при rate-limit ---
 _MAX_RETRIES = 6  # максимум попыток
@@ -71,7 +72,7 @@ def call_mistral(
     backoff = _BACKOFF_INITIAL
 
     for attempt in range(_MAX_RETRIES):
-        model = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
+        model = MISTRAL_MODEL
         try:
             response = client.chat.complete(
                 model=model,
