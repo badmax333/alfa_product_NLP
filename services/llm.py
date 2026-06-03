@@ -72,6 +72,7 @@ def call_mistral_messages(
     backoff = _BACKOFF_INITIAL
 
     for attempt in range(_MAX_RETRIES):
+        model = MISTRAL_MODEL
         try:
             response = client.chat.complete(
                 model=MISTRAL_MODEL,
