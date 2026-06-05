@@ -260,3 +260,39 @@ class GenerateStage2SalesArgumentRequest(RenderStage2SalesArgPromptRequest):
 
 class Stage2SalesArgumentResponse(SalesArgumentResponse):
     propensity_score: float | None = None
+
+
+# ---------------------------------------------------------------------------
+# Recycle / next onboarding cycle
+# ---------------------------------------------------------------------------
+
+
+class RecycleOnboardingRequest(BaseModel):
+    classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
+    client_features: dict[str, Any] = Field(default_factory=dict)
+    stage1_argument: dict[str, Any] = Field(description="Sales-аргумент Stage 1")
+    stage1_metrics: dict[str, Any] = Field(description="Метрики Stage 1")
+    propensity_result: dict[str, Any] = Field(description="Результат скоринга Stage 2")
+    stage2_argument: dict[str, Any] = Field(description="Sales-аргумент Stage 2")
+    stage2_metrics: dict[str, Any] = Field(description="Метрики Stage 2")
+    selected_stage2_product: dict[str, Any] = Field(default_factory=dict)
+    interaction_type: str = Field(default="banner", description="'banner' | 'push' | 'voice'")
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+class RecycleOnboardingResponse(BaseModel):
+    cycle_number: int
+    activation_status: str
+    shown_product_ids: list[str]
+    generated_features: dict[str, Any]
+    feature_generation_reasoning: str
+    feature_generation_prompt: str
+    feature_generation_system_prompt: str
+    propensity_model_source: str
+    selected_product: PropensityProductItem
+    next_argument: Stage2SalesArgumentResponse
+    top_products: list[PropensityProductItem]
+    all_products: list[PropensityProductItem]
+    rendered_prompt: str
+    system_prompt: str
+    raw_llm_response: str
