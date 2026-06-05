@@ -26,6 +26,9 @@ SYSTEM_PROMPT = """
 - Сохраняй явно известные пользователем признаки, если они переданы во входном профиле.
 - Остальные признаки сгенерируй согласованно с портретом, отраслью, sales-аргументом,
   реакцией клиента и метриками взаимодействия.
+- Если передана история предыдущих касаний, учти её как сигналы поведения клиента:
+  показанные предложения не активировали клиента, поэтому обнови поведенческие признаки
+  реалистично, но не переписывай явно известные регистрационные данные.
 - Числовые признаки должны быть числами, бинарные признаки только 0 или 1.
 - Категориальные признаки должны быть строками.
 - Не выдумывай экстремальные значения без причины: профиль должен быть реалистичным для POC.
@@ -79,6 +82,7 @@ def render_propensity_feature_prompt(
     client_features: dict[str, Any],
     metrics_result: dict[str, Any] | None,
     sales_argument: dict[str, Any] | None,
+    onboarding_history: dict[str, Any] | None = None,
 ) -> str:
     """Собрать user prompt для генерации полного набора признаков Stage 2."""
     feature_config = _load_feature_config()
@@ -103,6 +107,7 @@ def render_propensity_feature_prompt(
             "user_reaction_text": (metrics_result or {}).get("user_reaction_text", ""),
             "metric_values": _metric_values(metrics_result),
         },
+        "onboarding_history": onboarding_history or {},
     }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -153,6 +158,7 @@ def generate_propensity_features(
     client_features: dict[str, Any],
     metrics_result: dict[str, Any] | None,
     sales_argument: dict[str, Any] | None,
+    onboarding_history: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Вызвать Mistral и вернуть полный набор признаков для модели склонности."""
     feature_config = _load_feature_config()
@@ -161,6 +167,7 @@ def generate_propensity_features(
         client_features=client_features,
         metrics_result=metrics_result,
         sales_argument=sales_argument,
+        onboarding_history=onboarding_history,
     )
 
     raw_text = call_mistral_messages(

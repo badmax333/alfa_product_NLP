@@ -21,6 +21,8 @@ let stage2InteractionType = null;     // "banner" | "push" | "voice" для Stag
 let stage2Argument = null;            // сгенерированный sales-аргумент Stage 2
 let selectedS2Method = "llm";         // "llm" | "random" для Stage 2 метрик
 let stage2MetricsResult = null;       // результат генерации метрик Stage 2
+let recycleInteractionType = "banner"; // формат следующего касания после двух попыток
+let recycleResult = null;             // результат закольцованного цикла
 
 // ============================================================
 // Tab navigation
@@ -39,6 +41,7 @@ function switchTab(tabId) {
   if (tabId === "propensity") onEnterPropensityTab();
   if (tabId === "stage2-sales") onEnterStage2SalesTab();
   if (tabId === "stage2-metrics") onEnterStage2MetricsTab();
+  if (tabId === "recycle") onEnterRecycleTab();
 }
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -259,11 +262,13 @@ document.getElementById("predict-form").addEventListener("submit", async (e) => 
     propensityResult = null;
     stage2Argument = null;
     stage2MetricsResult = null;
+    recycleResult = null;
     selectedPropensityProduct = null;
     document.getElementById("tab-btn-metrics").classList.remove("done");
     document.getElementById("tab-btn-propensity").classList.remove("done");
     document.getElementById("tab-btn-stage2-sales").classList.remove("done");
     document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+    document.getElementById("tab-btn-recycle").classList.remove("done");
     renderClassificationResult(classificationResult);
   } catch (err) {
     showClassifyError(err.message || "Ошибка классификации");
@@ -356,6 +361,7 @@ function selectInteractionType(typeId) {
   propensityResult = null;
   stage2Argument = null;
   stage2MetricsResult = null;
+  recycleResult = null;
   selectedPropensityProduct = null;
   document.querySelectorAll("#interaction-type-btns .itype-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.itype === typeId);
@@ -369,6 +375,7 @@ function selectInteractionType(typeId) {
   document.getElementById("tab-btn-propensity").classList.remove("done");
   document.getElementById("tab-btn-stage2-sales").classList.remove("done");
   document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  document.getElementById("tab-btn-recycle").classList.remove("done");
   updateSalesPrompt();
 }
 
@@ -428,6 +435,7 @@ async function generateSalesArgument() {
     propensityResult = null;
     stage2Argument = null;
     stage2MetricsResult = null;
+    recycleResult = null;
     renderArgumentCard(selectedArgument);
 
     if (selectedArgument.rendered_prompt) {
@@ -439,6 +447,7 @@ async function generateSalesArgument() {
     document.getElementById("tab-btn-propensity").classList.remove("done");
     document.getElementById("tab-btn-stage2-sales").classList.remove("done");
     document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+    document.getElementById("tab-btn-recycle").classList.remove("done");
   } catch (err) {
     placeholder.classList.remove("hidden");
     placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка генерации аргумента"}</div>`;
@@ -608,9 +617,11 @@ async function generateMetrics() {
   propensityResult = null;
   stage2Argument = null;
   stage2MetricsResult = null;
+  recycleResult = null;
   document.getElementById("tab-btn-propensity").classList.remove("done");
   document.getElementById("tab-btn-stage2-sales").classList.remove("done");
   document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  document.getElementById("tab-btn-recycle").classList.remove("done");
 
   try {
     const res = await fetch("/api/v1/metrics/generate", {
@@ -821,9 +832,11 @@ async function scorePropensity() {
   document.getElementById("to-stage2-bar").classList.add("hidden");
   stage2Argument = null;
   stage2MetricsResult = null;
+  recycleResult = null;
   selectedPropensityProduct = null;
   document.getElementById("tab-btn-stage2-sales").classList.remove("done");
   document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  document.getElementById("tab-btn-recycle").classList.remove("done");
 
   try {
     const res = await fetch("/api/v1/propensity/score", {
@@ -1020,6 +1033,7 @@ function selectS2Product(product) {
   selectedPropensityProduct = product;
   stage2Argument = null;
   stage2MetricsResult = null;
+  recycleResult = null;
   document.querySelectorAll("#s2-product-btns .itype-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.productId === product.product_id);
   });
@@ -1029,6 +1043,7 @@ function selectS2Product(product) {
   document.getElementById("s2-argument-placeholder").textContent =
     "Выберите тип взаимодействия и нажмите «Сгенерировать»";
   document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  document.getElementById("tab-btn-recycle").classList.remove("done");
   if (stage2InteractionType) updateStage2Prompt();
 }
 
@@ -1050,6 +1065,7 @@ function selectS2InteractionType(typeId) {
   stage2InteractionType = typeId;
   stage2Argument = null;
   stage2MetricsResult = null;
+  recycleResult = null;
   document.querySelectorAll("#s2-interaction-type-btns .itype-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.itype === typeId);
   });
@@ -1059,6 +1075,7 @@ function selectS2InteractionType(typeId) {
   document.getElementById("s2-argument-placeholder").textContent =
     "Выберите продукт и нажмите «Сгенерировать»";
   document.getElementById("tab-btn-stage2-metrics").classList.remove("done");
+  document.getElementById("tab-btn-recycle").classList.remove("done");
   if (selectedPropensityProduct) updateStage2Prompt();
 }
 
@@ -1124,6 +1141,7 @@ async function generateStage2Argument() {
 
     stage2Argument = await res.json();
     stage2MetricsResult = null;
+    recycleResult = null;
 
     if (stage2Argument.rendered_prompt) {
       document.getElementById("s2-sales-prompt-text").textContent = stage2Argument.rendered_prompt;
@@ -1301,6 +1319,7 @@ async function generateStage2Metrics() {
 
     renderMetricsResult(stage2MetricsResult, "s2-metrics-placeholder", "s2-metrics-content");
     document.getElementById("tab-btn-stage2-metrics").classList.add("done");
+    document.getElementById("to-recycle-bar").classList.remove("hidden");
   } catch (err) {
     document.getElementById("s2-metrics-placeholder").classList.remove("hidden");
     document.getElementById("s2-metrics-placeholder").innerHTML =
@@ -1311,6 +1330,196 @@ async function generateStage2Metrics() {
     btn.textContent =
       selectedS2Method === "llm" ? "Сгенерировать метрики Stage 2 (LLM)" : "Сгенерировать (локально)";
   }
+}
+
+// ============================================================
+// TAB 7 — Recycle onboarding loop
+// ============================================================
+function onEnterRecycleTab() {
+  const hasFullHistory =
+    classificationResult &&
+    selectedArgument &&
+    metricsResult &&
+    propensityResult &&
+    stage2Argument &&
+    stage2MetricsResult;
+  document.getElementById("recycle-no-prev").classList.toggle("hidden", hasFullHistory);
+  document.getElementById("recycle-context").classList.toggle("hidden", !hasFullHistory);
+
+  if (!hasFullHistory) return;
+
+  renderRecycleContext();
+  loadSalesArgsConfig().then(() => renderRecycleInteractionTypeButtons());
+  if (recycleResult) {
+    renderRecycleResult(recycleResult);
+  }
+}
+
+function renderRecycleContext() {
+  const s1Interest = Math.round((metricsResult?.interest_score || 0) * 100);
+  const s2Interest = Math.round((stage2MetricsResult?.interest_score || 0) * 100);
+  const s2Product = selectedPropensityProduct || {};
+
+  document.getElementById("recycle-context").innerHTML = `
+    <div class="profile-summary">
+      <p class="section-label">Статус</p>
+      <div class="model-source-note">
+        Две попытки продажи не активировали клиента. Новый цикл учитывает всю историю и избегает повторов.
+      </div>
+
+      <p class="section-label">Сегмент</p>
+      <div class="profile-badge">
+        <span class="profile-class">${classificationResult.predicted_class}</span>
+        <span class="profile-name">${classificationResult.class_description}</span>
+      </div>
+
+      <p class="section-label">Попытка 1</p>
+      <div class="metrics-argument-preview">
+        <strong>${selectedArgument.product_name || "Stage 1 продукт"}</strong><br>
+        ${selectedArgument.headline}<br>
+        Интерес: ${s1Interest}% · ${metricsResult?.user_reaction_text || ""}
+      </div>
+
+      <p class="section-label">Попытка 2</p>
+      <div class="metrics-argument-preview">
+        <strong>${stage2Argument.product_name || s2Product.product_name || "Stage 2 продукт"}</strong><br>
+        ${stage2Argument.headline}<br>
+        Интерес: ${s2Interest}% · ${stage2MetricsResult?.user_reaction_text || ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderRecycleInteractionTypeButtons() {
+  const container = document.getElementById("recycle-interaction-type-btns");
+  container.innerHTML = "";
+  (salesArgsConfig?.interaction_types || []).forEach((t) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "itype-btn" + (recycleInteractionType === t.id ? " active" : "");
+    btn.dataset.itype = t.id;
+    btn.innerHTML = `<strong>${t.label}</strong><span>${t.description}</span>`;
+    btn.addEventListener("click", () => selectRecycleInteractionType(t.id));
+    container.appendChild(btn);
+  });
+}
+
+function selectRecycleInteractionType(typeId) {
+  recycleInteractionType = typeId;
+  recycleResult = null;
+  document.querySelectorAll("#recycle-interaction-type-btns .itype-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.itype === typeId);
+  });
+  document.getElementById("recycle-content").classList.add("hidden");
+  document.getElementById("recycle-placeholder").classList.remove("hidden");
+  document.getElementById("recycle-placeholder").textContent = "Нажмите «Запустить новый цикл»";
+  document.getElementById("recycle-prompt-text").textContent = "Промпт появится после запуска нового цикла";
+}
+
+function recyclePayload() {
+  return {
+    classification: classificationResult,
+    client_features: clientFeatures,
+    stage1_argument: selectedArgument,
+    stage1_metrics: metricsResult,
+    propensity_result: propensityResult,
+    stage2_argument: stage2Argument,
+    stage2_metrics: stage2MetricsResult,
+    selected_stage2_product: selectedPropensityProduct || {},
+    interaction_type: recycleInteractionType,
+    top_k: 3,
+  };
+}
+
+async function generateRecycleCycle() {
+  if (!classificationResult || !stage2MetricsResult) {
+    alert("Сначала завершите Stage 2 и рассчитайте метрики второго касания");
+    return;
+  }
+
+  const btn = document.getElementById("btn-generate-recycle");
+  const placeholder = document.getElementById("recycle-placeholder");
+  btn.disabled = true;
+  btn.textContent = "Запускаем цикл…";
+  placeholder.classList.remove("hidden");
+  placeholder.textContent = "Обновляем фичи, пересчитываем склонность и генерируем следующий оффер…";
+  document.getElementById("recycle-content").classList.add("hidden");
+
+  try {
+    const res = await fetch("/api/v1/recycle/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(recyclePayload()),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Ошибка ${res.status}`);
+    }
+
+    recycleResult = await res.json();
+    document.getElementById("recycle-prompt-text").textContent = recycleResult.rendered_prompt || "";
+    renderRecycleResult(recycleResult);
+    document.getElementById("tab-btn-recycle").classList.add("done");
+  } catch (err) {
+    placeholder.classList.remove("hidden");
+    placeholder.innerHTML = `<div class="error-msg">${err.message || "Ошибка нового цикла"}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Запустить новый цикл";
+  }
+}
+
+function renderRecycleResult(data) {
+  document.getElementById("recycle-placeholder").classList.add("hidden");
+  const box = document.getElementById("recycle-content");
+  box.classList.remove("hidden");
+
+  const arg = data.next_argument;
+  const product = data.selected_product;
+  const scorePct = Math.round((product.propensity_score || 0) * 100);
+  const shown = (data.shown_product_ids || []).join(", ") || "нет";
+
+  box.innerHTML = `
+    <div class="model-source-note">
+      Новый цикл #${data.cycle_number}. Исключены уже показанные продукты: ${shown}
+    </div>
+
+    <div class="generated-feature-box">
+      <p class="section-label">Обновленные признаки</p>
+      ${data.feature_generation_reasoning ? `<p class="hint">${data.feature_generation_reasoning}</p>` : ""}
+      ${renderGeneratedFeatures(data.generated_features || {})}
+    </div>
+
+    <div class="propensity-card">
+      <div class="propensity-card-head">
+        <span class="rank-badge">→</span>
+        <div>
+          <h3>${product.product_name}</h3>
+          <p>Склонность после обновления: ${scorePct}%</p>
+        </div>
+        <div class="propensity-score">${scorePct}%</div>
+      </div>
+      <div class="propensity-score-bar">
+        <span style="width:${scorePct}%"></span>
+      </div>
+      <p class="propensity-description">${product.description}</p>
+    </div>
+
+    <div class="argument-card">
+      <div>
+        <span class="argument-channel-badge ${arg.channel === "digital" ? "badge-digital" : "badge-voice"}">
+          ${arg.channel === "digital" ? "Цифровой канал" : "Голосовой канал"} · ${arg.interaction_type}
+        </span>
+      </div>
+      <p class="argument-headline">${arg.headline}</p>
+      <p class="argument-body">${arg.body}</p>
+      ${arg.cta ? `<span class="argument-cta">${arg.cta}</span>` : ""}
+      <div class="argument-note">
+        <strong>Стратегия нового цикла</strong>
+        ${arg.note}
+      </div>
+    </div>
+  `;
 }
 
 // ============================================================

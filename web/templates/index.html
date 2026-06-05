@@ -46,6 +46,11 @@
       <span class="tab-num">6</span>
       <span class="tab-label">Stage 2 — Метрики</span>
     </button>
+    <div class="tab-arrow">→</div>
+    <button class="tab-btn" data-tab="recycle" id="tab-btn-recycle">
+      <span class="tab-num">7</span>
+      <span class="tab-label">Новый цикл</span>
+    </button>
   </nav>
 
   <!-- ======================================================= -->
@@ -354,6 +359,59 @@
           Нажмите «Сгенерировать метрики Stage 2»
         </div>
         <div id="s2-metrics-content" class="hidden"></div>
+
+        <div id="to-recycle-bar" class="next-step-bar hidden">
+          <span>Активации нет — запустите новый цикл с учетом всей истории</span>
+          <button class="btn-secondary" onclick="switchTab('recycle')">
+            Новый цикл →
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- ВКЛАДКА 7: Новый цикл после двух неуспешных касаний      -->
+  <!-- ======================================================= -->
+  <div id="tab-recycle" class="tab-content hidden">
+    <main class="layout layout-3col">
+
+      <section class="card col-client-profile">
+        <h2>История клиента</h2>
+        <div id="recycle-no-prev" class="placeholder">
+          Сначала завершите Stage 2 и рассчитайте метрики второго касания
+        </div>
+        <div id="recycle-context" class="hidden"></div>
+      </section>
+
+      <section class="card col-prompt">
+        <h2>Закольцовка пайплайна</h2>
+        <p class="hint">
+          Система считает, что два предложения не активировали клиента, обновляет признаки,
+          пересчитывает склонность и выбирает следующий оффер без повторов.
+        </p>
+
+        <p class="form-title">Тип следующего касания</p>
+        <div id="recycle-interaction-type-btns" class="interaction-type-btns"></div>
+
+        <div class="divider"></div>
+
+        <h3 class="form-title">Промпт нового цикла</h3>
+        <div class="prompt-box">
+          <pre id="recycle-prompt-text" class="prompt-text">Промпт появится после запуска нового цикла</pre>
+        </div>
+
+        <button class="btn-primary" id="btn-generate-recycle" onclick="generateRecycleCycle()">
+          Запустить новый цикл
+        </button>
+      </section>
+
+      <section class="card col-argument">
+        <h2>Следующий оффер</h2>
+        <div id="recycle-placeholder" class="placeholder">
+          Нажмите «Запустить новый цикл»
+        </div>
+        <div id="recycle-content" class="hidden"></div>
       </section>
     </main>
   </div>

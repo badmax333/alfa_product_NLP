@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import warnings
 from typing import Any
 
 import joblib
@@ -660,7 +661,13 @@ def _score_products_with_model(
     product_ids = feature_config.get("product_ids") or PRODUCT_IDS
     for product_id in product_ids:
         frame = _client_product_matrix(features, product_id, feature_config)
-        raw_score = float(model.predict_proba(frame)[0, 1])
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="X does not have valid feature names, but LGBMClassifier was fitted with feature names",
+                category=UserWarning,
+            )
+            raw_score = float(model.predict_proba(frame)[0, 1])
         calibrated_logit = _logit(raw_score) + interaction_delta
         calibrated_score = _sigmoid(calibrated_logit)
         top_factors = _build_top_factors(

@@ -22,6 +22,8 @@ from api.schemas import (
     PropensityProductItem,
     PropensityScoreRequest,
     PropensityScoreResponse,
+    RecycleOnboardingRequest,
+    RecycleOnboardingResponse,
     RenderPropensityFeaturePromptRequest,
     RenderedPromptResponse,
     RenderMetricsPromptRequest,
@@ -51,6 +53,7 @@ from services.propensity_feature_generator import (
 )
 from services.propensity_scorer import score_propensity
 from services.random_metrics_generator import generate_metrics_random
+from services.recycle_onboarding import generate_recycle_onboarding
 from services.sales_argument_generator import (
     generate_sales_argument,
     generate_stage2_argument,
@@ -317,3 +320,47 @@ async def generate_stage2_sales_arg_endpoint(body: GenerateStage2SalesArgumentRe
         )
 
     return Stage2SalesArgumentResponse(**result)
+
+
+@app.post("/api/v1/recycle/generate", response_model=RecycleOnboardingResponse)
+async def generate_recycle_onboarding_endpoint(body: RecycleOnboardingRequest):
+    """Запустить новый цикл онбординга после двух неуспешных касаний."""
+    try:
+        result = generate_recycle_onboarding(
+            classification=body.classification,
+            client_features=body.client_features,
+            stage1_argument=body.stage1_argument,
+            stage1_metrics=body.stage1_metrics,
+            propensity_result=body.propensity_result,
+            stage2_argument=body.stage2_argument,
+            stage2_metrics=body.stage2_metrics,
+            selected_stage2_product=body.selected_stage2_product,
+            interaction_type=body.interaction_type,
+            top_k=body.top_k,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка нового цикла: {e}")
+
+    feature_generation = result["feature_generation"]
+    propensity = result["propensity"]
+    return RecycleOnboardingResponse(
+        cycle_number=result["cycle_number"],
+        activation_status=result["activation_status"],
+        shown_product_ids=result["shown_product_ids"],
+        generated_features=feature_generation["features"],
+        feature_generation_reasoning=feature_generation["reasoning_summary"],
+        feature_generation_prompt=feature_generation["rendered_prompt"],
+        feature_generation_system_prompt=feature_generation["system_prompt"],
+        propensity_model_source=propensity["model_source"],
+        selected_product=PropensityProductItem(**result["selected_product"]),
+        next_argument=Stage2SalesArgumentResponse(**result["next_argument"]),
+        top_products=[PropensityProductItem(**item) for item in propensity["top_products"]],
+        all_products=[PropensityProductItem(**item) for item in propensity["all_products"]],
+        rendered_prompt=result["rendered_prompt"],
+        system_prompt=result["system_prompt"],
+        raw_llm_response=result["raw_llm_response"],
+    )
