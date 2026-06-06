@@ -213,7 +213,9 @@ class PropensityScoreRequest(BaseModel):
 class RenderPropensityFeaturePromptRequest(BaseModel):
     classification: dict[str, Any] = Field(description="Результат /api/v1/predict")
     client_features: dict[str, Any] = Field(default_factory=dict)
-    metrics_result: dict[str, Any] = Field(description="Результат /api/v1/metrics/generate")
+    metrics_result: dict[str, Any] = Field(
+        description="Результат /api/v1/metrics/generate"
+    )
     sales_argument: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -276,7 +278,9 @@ class RecycleOnboardingRequest(BaseModel):
     stage2_argument: dict[str, Any] = Field(description="Sales-аргумент Stage 2")
     stage2_metrics: dict[str, Any] = Field(description="Метрики Stage 2")
     selected_stage2_product: dict[str, Any] = Field(default_factory=dict)
-    interaction_type: str = Field(default="banner", description="'banner' | 'push' | 'voice'")
+    interaction_type: str = Field(
+        default="banner", description="'banner' | 'push' | 'voice'"
+    )
     top_k: int = Field(default=3, ge=1, le=10)
 
 

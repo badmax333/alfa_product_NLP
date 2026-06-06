@@ -45,6 +45,7 @@ from services.llm import call_mistral
 # Вспомогательные функции для статистики
 # ---------------------------------------------------------------------------
 
+
 def _mean(values: list[float]) -> float:
     return round(statistics.mean(values), 4) if values else 0.0
 
@@ -66,7 +67,11 @@ def _cohens_d(a: list[float], b: list[float]) -> float:
     if len(a) < 2 or len(b) < 2:
         return 0.0
     pooled_std = ((statistics.stdev(a) ** 2 + statistics.stdev(b) ** 2) / 2) ** 0.5
-    return round((statistics.mean(a) - statistics.mean(b)) / pooled_std, 4) if pooled_std > 0 else 0.0
+    return (
+        round((statistics.mean(a) - statistics.mean(b)) / pooled_std, 4)
+        if pooled_std > 0
+        else 0.0
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -74,8 +79,12 @@ def _cohens_d(a: list[float], b: list[float]) -> float:
 # ---------------------------------------------------------------------------
 
 _NEGATIVE_METRIC_NAMES = {
-    "banner_dismissed", "complaint_filed", "push_unsubscribed",
-    "negative_reaction_voice", "requested_no_more_calls", "complaint_after_call",
+    "banner_dismissed",
+    "complaint_filed",
+    "push_unsubscribed",
+    "negative_reaction_voice",
+    "requested_no_more_calls",
+    "complaint_after_call",
 }
 
 _SOFT_INTEREST_METRIC_NAMES = {"remind_later_clicked", "agreed_to_callback"}
@@ -83,10 +92,9 @@ _SOFT_INTEREST_METRIC_NAMES = {"remind_later_clicked", "agreed_to_callback"}
 
 def _has_negative_action(result: dict) -> bool:
     """True, если у клиента было хотя бы одно негативное действие на S1 или S2."""
-    all_metrics = (
-        result.get("s1_metrics", {}).get("metrics", [])
-        + result.get("s2_metrics", {}).get("metrics", [])
-    )
+    all_metrics = result.get("s1_metrics", {}).get("metrics", []) + result.get(
+        "s2_metrics", {}
+    ).get("metrics", [])
     return any(
         m["name"] in _NEGATIVE_METRIC_NAMES and bool(m.get("value"))
         for m in all_metrics
@@ -95,10 +103,9 @@ def _has_negative_action(result: dict) -> bool:
 
 def _has_soft_interest(result: dict) -> bool:
     """True, если клиент проявил мягкий интерес (remind_later или callback)."""
-    all_metrics = (
-        result.get("s1_metrics", {}).get("metrics", [])
-        + result.get("s2_metrics", {}).get("metrics", [])
-    )
+    all_metrics = result.get("s1_metrics", {}).get("metrics", []) + result.get(
+        "s2_metrics", {}
+    ).get("metrics", [])
     return any(
         m["name"] in _SOFT_INTEREST_METRIC_NAMES and bool(m.get("value"))
         for m in all_metrics
@@ -113,11 +120,16 @@ def _specificity_score(argument: dict) -> float:
       +0.20 — длина > 150 символов (достаточная детализация)
       +0.20 — CTA содержит конкретный глагол действия
     """
-    text = " ".join(filter(None, [
-        argument.get("headline", ""),
-        argument.get("body", ""),
-        argument.get("cta", ""),
-    ]))
+    text = " ".join(
+        filter(
+            None,
+            [
+                argument.get("headline", ""),
+                argument.get("body", ""),
+                argument.get("cta", ""),
+            ],
+        )
+    )
     score = 0.0
     if re.search(r"\d+", text):
         score += 0.35
@@ -126,7 +138,9 @@ def _specificity_score(argument: dict) -> float:
     if len(text) > 150:
         score += 0.20
     cta = argument.get("cta", "").lower()
-    if any(w in cta for w in ["подключ", "оформ", "запуст", "выведи", "попробу", "активир"]):
+    if any(
+        w in cta for w in ["подключ", "оформ", "запуст", "выведи", "попробу", "активир"]
+    ):
         score += 0.20
     return round(min(score, 1.0), 3)
 
@@ -165,6 +179,7 @@ def _score_relevance_llm(argument: dict, client_features: dict, portrait: str) -
 # Агрегация статистики
 # ---------------------------------------------------------------------------
 
+
 def _compute_stats(personalized: list[dict], generic: list[dict]) -> dict[str, Any]:
     """Считает сводную статистику по двум группам клиентов."""
     p_s1 = _extract(personalized, "s1_interest")
@@ -185,11 +200,13 @@ def _compute_stats(personalized: list[dict], generic: list[dict]) -> dict[str, A
 
     # Win rate — на каждом клиенте персонализированный vs обезличенный
     win_s1 = sum(
-        1 for p, g in zip(personalized, generic)
+        1
+        for p, g in zip(personalized, generic)
         if p["summary"]["s1_interest"] > g["summary"]["s1_interest"]
     )
     win_s2 = sum(
-        1 for p, g in zip(personalized, generic)
+        1
+        for p, g in zip(personalized, generic)
         if p["summary"]["s2_interest"] > g["summary"]["s2_interest"]
     )
     n = len(personalized)
@@ -257,7 +274,8 @@ def _compute_stats(personalized: list[dict], generic: list[dict]) -> dict[str, A
             "s2_interest": _cohens_d(p_s2, g_s2),
         },
         "llm_fallback_count": sum(
-            1 for r in personalized
+            1
+            for r in personalized
             if r.get("llm_errors", {}).get("s1") or r.get("llm_errors", {}).get("s2")
         ),
     }
@@ -266,6 +284,7 @@ def _compute_stats(personalized: list[dict], generic: list[dict]) -> dict[str, A
 # ---------------------------------------------------------------------------
 # Запуск эксперимента
 # ---------------------------------------------------------------------------
+
 
 def run_experiment(
     n: int,
@@ -341,6 +360,7 @@ def run_experiment(
 # Вывод отчёта
 # ---------------------------------------------------------------------------
 
+
 def _print_report(stats: dict[str, Any]) -> None:
     n = stats["n"]
     p = stats["personalized"]
@@ -364,96 +384,122 @@ def _print_report(stats: dict[str, Any]) -> None:
     print(sep)
 
     # Основные метрики интереса
-    print(row.format(
-        "S1 interest (mean ± std)",
-        f"{p['s1_interest']['mean']:.3f} ±{p['s1_interest']['std']:.3f}",
-        f"{g['s1_interest']['mean']:.3f} ±{g['s1_interest']['std']:.3f}",
-        f"{d['s1_interest']:+.3f}",
-    ))
-    print(row.format(
-        "S2 interest (mean ± std)",
-        f"{p['s2_interest']['mean']:.3f} ±{p['s2_interest']['std']:.3f}",
-        f"{g['s2_interest']['mean']:.3f} ±{g['s2_interest']['std']:.3f}",
-        f"{d['s2_interest']:+.3f}",
-    ))
-    print(row.format(
-        "S1 → S2 interest lift",
-        f"{p['s1_to_s2_lift']:+.3f}",
-        f"{g['s1_to_s2_lift']:+.3f}",
-        "",
-    ))
+    print(
+        row.format(
+            "S1 interest (mean ± std)",
+            f"{p['s1_interest']['mean']:.3f} ±{p['s1_interest']['std']:.3f}",
+            f"{g['s1_interest']['mean']:.3f} ±{g['s1_interest']['std']:.3f}",
+            f"{d['s1_interest']:+.3f}",
+        )
+    )
+    print(
+        row.format(
+            "S2 interest (mean ± std)",
+            f"{p['s2_interest']['mean']:.3f} ±{p['s2_interest']['std']:.3f}",
+            f"{g['s2_interest']['mean']:.3f} ±{g['s2_interest']['std']:.3f}",
+            f"{d['s2_interest']:+.3f}",
+        )
+    )
+    print(
+        row.format(
+            "S1 → S2 interest lift",
+            f"{p['s1_to_s2_lift']:+.3f}",
+            f"{g['s1_to_s2_lift']:+.3f}",
+            "",
+        )
+    )
     print(sep)
 
     # Конверсия
-    print(row.format(
-        "S1 conversion rate",
-        f"{p['s1_conversion']:.1%}",
-        f"{g['s1_conversion']:.1%}",
-        f"{d['s1_conversion']:+.1%}",
-    ))
-    print(row.format(
-        "S2 conversion rate",
-        f"{p['s2_conversion']:.1%}",
-        f"{g['s2_conversion']:.1%}",
-        f"{d['s2_conversion']:+.1%}",
-    ))
+    print(
+        row.format(
+            "S1 conversion rate",
+            f"{p['s1_conversion']:.1%}",
+            f"{g['s1_conversion']:.1%}",
+            f"{d['s1_conversion']:+.1%}",
+        )
+    )
+    print(
+        row.format(
+            "S2 conversion rate",
+            f"{p['s2_conversion']:.1%}",
+            f"{g['s2_conversion']:.1%}",
+            f"{d['s2_conversion']:+.1%}",
+        )
+    )
     print(sep)
 
     # Поведенческие метрики
-    print(row.format(
-        "Negative action rate",
-        f"{p['negative_rate']:.1%}",
-        f"{g['negative_rate']:.1%}",
-        f"{d['negative_rate']:+.1%}",
-    ))
-    print(row.format(
-        "Soft interest rate",
-        f"{p['soft_interest_rate']:.1%}",
-        f"{g['soft_interest_rate']:.1%}",
-        f"{d['soft_interest_rate']:+.1%}",
-    ))
+    print(
+        row.format(
+            "Negative action rate",
+            f"{p['negative_rate']:.1%}",
+            f"{g['negative_rate']:.1%}",
+            f"{d['negative_rate']:+.1%}",
+        )
+    )
+    print(
+        row.format(
+            "Soft interest rate",
+            f"{p['soft_interest_rate']:.1%}",
+            f"{g['soft_interest_rate']:.1%}",
+            f"{d['soft_interest_rate']:+.1%}",
+        )
+    )
     print(sep)
 
     # Качество аргумента
-    print(row.format(
-        "Specificity score (text)",
-        f"{p['specificity_mean']:.3f}",
-        f"{g['specificity_mean']:.3f}",
-        f"{d['specificity']:+.3f}",
-    ))
-    print(row.format(
-        "Relevance score (LLM 0–1)",
-        f"{p['relevance_mean']:.3f}",
-        f"{g['relevance_mean']:.3f}",
-        f"{d['relevance']:+.3f}",
-    ))
+    print(
+        row.format(
+            "Specificity score (text)",
+            f"{p['specificity_mean']:.3f}",
+            f"{g['specificity_mean']:.3f}",
+            f"{d['specificity']:+.3f}",
+        )
+    )
+    print(
+        row.format(
+            "Relevance score (LLM 0–1)",
+            f"{p['relevance_mean']:.3f}",
+            f"{g['relevance_mean']:.3f}",
+            f"{d['relevance']:+.3f}",
+        )
+    )
     print(sep)
 
     # Статистика сравнения
-    print(row.format(
-        "Win rate S1 (pers > generic)",
-        f"{wr['s1']:.1%}",
-        "—",
-        "",
-    ))
-    print(row.format(
-        "Win rate S2 (pers > generic)",
-        f"{wr['s2']:.1%}",
-        "—",
-        "",
-    ))
-    print(row.format(
-        "Cohen's d  (S1 interest)",
-        f"{cd['s1_interest']:.3f}",
-        "—",
-        "",
-    ))
-    print(row.format(
-        "Cohen's d  (S2 interest)",
-        f"{cd['s2_interest']:.3f}",
-        "—",
-        "",
-    ))
+    print(
+        row.format(
+            "Win rate S1 (pers > generic)",
+            f"{wr['s1']:.1%}",
+            "—",
+            "",
+        )
+    )
+    print(
+        row.format(
+            "Win rate S2 (pers > generic)",
+            f"{wr['s2']:.1%}",
+            "—",
+            "",
+        )
+    )
+    print(
+        row.format(
+            "Cohen's d  (S1 interest)",
+            f"{cd['s1_interest']:.3f}",
+            "—",
+            "",
+        )
+    )
+    print(
+        row.format(
+            "Cohen's d  (S2 interest)",
+            f"{cd['s2_interest']:.3f}",
+            "—",
+            "",
+        )
+    )
     print(bar)
 
     # Разбивка по портретам
@@ -496,6 +542,7 @@ def _print_report(stats: dict[str, Any]) -> None:
 # Полная оценка
 # ---------------------------------------------------------------------------
 
+
 def run_full_evaluation(
     n: int = 20,
     output_json: str | None = None,
@@ -527,7 +574,9 @@ def run_full_evaluation(
     print(header)
     print()
 
-    result = run_experiment(n, shared_features, shared_itypes, client_pause=client_pause)
+    result = run_experiment(
+        n, shared_features, shared_itypes, client_pause=client_pause
+    )
     _print_report(result["stats"])
 
     output = {

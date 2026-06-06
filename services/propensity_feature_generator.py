@@ -63,7 +63,9 @@ def _metric_values(metrics_result: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _feature_schema(feature_config: dict[str, Any]) -> dict[str, Any]:
-    cat_features = [name for name in feature_config["cat_features"] if name != "product_id"]
+    cat_features = [
+        name for name in feature_config["cat_features"] if name != "product_id"
+    ]
     num_features = feature_config["num_features"]
     binary_features = feature_config.get("binary_features", [])
     return {
@@ -71,8 +73,7 @@ def _feature_schema(feature_config: dict[str, Any]) -> dict[str, Any]:
         "num_features": num_features,
         "binary_features": binary_features,
         "feature_labels": {
-            name: FEATURE_LABELS.get(name, name)
-            for name in cat_features + num_features
+            name: FEATURE_LABELS.get(name, name) for name in cat_features + num_features
         },
     }
 
@@ -87,7 +88,10 @@ def render_propensity_feature_prompt(
     """Собрать user prompt для генерации полного набора признаков Stage 2."""
     feature_config = _load_feature_config()
     schema = _feature_schema(feature_config)
-    known_features = {**client_features, "priority_segment": classification["predicted_class"]}
+    known_features = {
+        **client_features,
+        "priority_segment": classification["predicted_class"],
+    }
 
     payload = {
         "task": "generate_propensity_features",
@@ -122,7 +126,9 @@ def _coerce_generated_features(
     if not isinstance(raw_features, dict):
         raise ValueError("Ответ модели должен содержать объект features")
 
-    cat_features = [name for name in feature_config["cat_features"] if name != "product_id"]
+    cat_features = [
+        name for name in feature_config["cat_features"] if name != "product_id"
+    ]
     num_features = feature_config["num_features"]
     binary_features = set(feature_config.get("binary_features", []))
     required_features = cat_features + num_features
@@ -141,7 +147,9 @@ def _coerce_generated_features(
             raise ValueError(f"LLM не вернул обязательный признак {name}")
 
         if name in binary_features:
-            features[name] = 1 if str(value).lower() in ("1", "true", "yes", "да") else 0
+            features[name] = (
+                1 if str(value).lower() in ("1", "true", "yes", "да") else 0
+            )
         elif name in num_features:
             try:
                 features[name] = float(value)
@@ -170,14 +178,17 @@ def generate_propensity_features(
         onboarding_history=onboarding_history,
     )
 
-    raw_text = call_mistral_messages(
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": rendered_prompt},
-        ],
-        temperature=0.35,
-        max_tokens=2500,
-    ) or ""
+    raw_text = (
+        call_mistral_messages(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": rendered_prompt},
+            ],
+            temperature=0.35,
+            max_tokens=2500,
+        )
+        or ""
+    )
     parsed = _extract_json(raw_text)
     features = _coerce_generated_features(
         parsed=parsed,

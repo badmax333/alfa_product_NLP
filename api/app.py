@@ -218,8 +218,12 @@ async def generate_metrics_endpoint(body: GenerateMetricsRequest):
     )
 
 
-@app.post("/api/v1/propensity/render-feature-prompt", response_model=RenderedPromptResponse)
-async def render_propensity_feature_prompt_endpoint(body: RenderPropensityFeaturePromptRequest):
+@app.post(
+    "/api/v1/propensity/render-feature-prompt", response_model=RenderedPromptResponse
+)
+async def render_propensity_feature_prompt_endpoint(
+    body: RenderPropensityFeaturePromptRequest,
+):
     """Рендерить промпт генерации признаков для Stage 2 без вызова Mistral."""
     try:
         prompt = render_propensity_feature_prompt(
@@ -229,7 +233,9 @@ async def render_propensity_feature_prompt_endpoint(body: RenderPropensityFeatur
             sales_argument=body.sales_argument,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга промпта признаков: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка рендеринга промпта признаков: {e}"
+        )
     return RenderedPromptResponse(rendered_prompt=prompt)
 
 
@@ -358,8 +364,12 @@ async def generate_recycle_onboarding_endpoint(body: RecycleOnboardingRequest):
         propensity_model_source=propensity["model_source"],
         selected_product=PropensityProductItem(**result["selected_product"]),
         next_argument=Stage2SalesArgumentResponse(**result["next_argument"]),
-        top_products=[PropensityProductItem(**item) for item in propensity["top_products"]],
-        all_products=[PropensityProductItem(**item) for item in propensity["all_products"]],
+        top_products=[
+            PropensityProductItem(**item) for item in propensity["top_products"]
+        ],
+        all_products=[
+            PropensityProductItem(**item) for item in propensity["all_products"]
+        ],
         rendered_prompt=result["rendered_prompt"],
         system_prompt=result["system_prompt"],
         raw_llm_response=result["raw_llm_response"],

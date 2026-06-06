@@ -4,6 +4,7 @@ import os
 import random
 import time
 from pathlib import Path
+from typing import Any
 
 from mistralai.client import Mistral
 
@@ -68,7 +69,7 @@ def _is_rate_limit(exc: Exception) -> bool:
 
 
 def call_mistral_messages(
-    messages: list[dict[str, str]],
+    messages: list[Any],
     temperature: float = 0.7,
     max_tokens: int = 1200,
 ) -> str | None:
