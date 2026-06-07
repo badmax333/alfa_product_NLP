@@ -81,7 +81,12 @@ SEGMENT_PRODUCT_BIAS: dict[str, dict[str, float]] = {
     "P1": {"zpp": 0.15, "accounting": 0.1, "business_card": 0.1},
     "P2": {"alfa_payments": 0.2, "internet_acquiring": 0.15, "mobile_app": 0.1},
     "P3": {"trade_acquiring": 0.2, "savings": 0.1},
-    "P4": {"internet_acquiring": 0.2, "alfa_payments": 0.1, "mobile_app": 0.15, "business_card": 0.05},
+    "P4": {
+        "internet_acquiring": 0.2,
+        "alfa_payments": 0.1,
+        "mobile_app": 0.15,
+        "business_card": 0.05,
+    },
     "P5": {"nachalo": 0.25, "tax_jar": 0.1},
     "P6": {"accounting": 0.2, "tax_jar": 0.15},
     "P7": {"trade_acquiring": 0.15, "zpp": 0.1},

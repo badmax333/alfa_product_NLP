@@ -74,10 +74,9 @@ def _shown_product_ids(
     if stage1_product_id:
         ids.append(stage1_product_id)
 
-    stage2_product_id = (
-        (selected_stage2_product or {}).get("product_id")
-        or _product_id_by_name((stage2_argument or {}).get("product_name"))
-    )
+    stage2_product_id = (selected_stage2_product or {}).get(
+        "product_id"
+    ) or _product_id_by_name((stage2_argument or {}).get("product_name"))
     if stage2_product_id:
         ids.append(stage2_product_id)
 
@@ -128,7 +127,9 @@ def build_onboarding_history(
     }
 
 
-def _select_next_product(scored_products: list[dict[str, Any]], shown_product_ids: list[str]) -> dict[str, Any]:
+def _select_next_product(
+    scored_products: list[dict[str, Any]], shown_product_ids: list[str]
+) -> dict[str, Any]:
     for product in scored_products:
         if product.get("product_id") not in shown_product_ids:
             return product
@@ -161,9 +162,9 @@ def render_recycle_prompt(
         "history": onboarding_history,
         "next_offer": {
             "interaction_type": interaction_type,
-            "interaction_type_label": _INTERACTION_TYPES_BY_ID.get(interaction_type, {}).get(
-                "label", interaction_type
-            ),
+            "interaction_type_label": _INTERACTION_TYPES_BY_ID.get(
+                interaction_type, {}
+            ).get("label", interaction_type),
             "product": next_product,
         },
         "instructions": [
@@ -234,14 +235,17 @@ def generate_recycle_onboarding(
         next_product=next_product,
         interaction_type=interaction_type,
     )
-    raw_text = call_mistral_messages(
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": rendered_prompt},
-        ],
-        temperature=0.55,
-        max_tokens=1600,
-    ) or ""
+    raw_text = (
+        call_mistral_messages(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": rendered_prompt},
+            ],
+            temperature=0.55,
+            max_tokens=1600,
+        )
+        or ""
+    )
     parsed = _extract_json(raw_text)
 
     argument = {
@@ -269,7 +273,9 @@ def generate_recycle_onboarding(
         "feature_generation": feature_generation,
         "propensity": {
             **scoring,
-            "top_products": filtered_products[: max(1, min(int(top_k), len(filtered_products) or 1))],
+            "top_products": filtered_products[
+                : max(1, min(int(top_k), len(filtered_products) or 1))
+            ],
         },
         "selected_product": next_product,
         "next_argument": argument,

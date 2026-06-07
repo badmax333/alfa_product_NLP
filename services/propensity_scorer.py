@@ -465,23 +465,50 @@ def _score_accounting(features: dict[str, Any]) -> tuple[float, list[dict[str, A
     return score, reasons
 
 
-def _score_business_card(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+def _score_business_card(
+    features: dict[str, Any],
+) -> tuple[float, list[dict[str, Any]]]:
     reasons = []
     score = -0.7
     turnover = _to_float(features, "week_sum_transactions")
 
     if _to_int(features, "rko_num_live") > 0:
         score += 0.8
-        reasons.append(_factor("rko_num_live", features.get("rko_num_live"), 0.8, "есть расчетный счет для привязки карты"))
+        reasons.append(
+            _factor(
+                "rko_num_live",
+                features.get("rko_num_live"),
+                0.8,
+                "есть расчетный счет для привязки карты",
+            )
+        )
     if turnover > 30000:
         score += 0.5
-        reasons.append(_factor("week_sum_transactions", turnover, 0.5, "есть регулярные бизнес-расходы"))
+        reasons.append(
+            _factor(
+                "week_sum_transactions", turnover, 0.5, "есть регулярные бизнес-расходы"
+            )
+        )
     if _to_int(features, "cashback_selected") > 0:
         score += 0.4
-        reasons.append(_factor("cashback_selected", features.get("cashback_selected"), 0.4, "клиент уже выбрал кэшбэк"))
+        reasons.append(
+            _factor(
+                "cashback_selected",
+                features.get("cashback_selected"),
+                0.4,
+                "клиент уже выбрал кэшбэк",
+            )
+        )
     if _to_int(features, "plastic_card_issued") > 0:
         score -= 1.2
-        reasons.append(_factor("plastic_card_issued", features.get("plastic_card_issued"), -1.2, "карта уже выпущена"))
+        reasons.append(
+            _factor(
+                "plastic_card_issued",
+                features.get("plastic_card_issued"),
+                -1.2,
+                "карта уже выпущена",
+            )
+        )
     return score, reasons
 
 
@@ -492,30 +519,60 @@ def _score_mobile_app(features: dict[str, Any]) -> tuple[float, list[dict[str, A
 
     if source in ("mobile", "online", "api"):
         score += 0.8
-        reasons.append(_factor("sourceattr_ccode", source, 0.8, "клиент пришел из цифрового канала"))
+        reasons.append(
+            _factor(
+                "sourceattr_ccode", source, 0.8, "клиент пришел из цифрового канала"
+            )
+        )
     if _to_float(features, "impnt") > 0.5:
         score += 0.5
-        reasons.append(_factor("impnt", features.get("impnt"), 0.5, "высокая цифровая вовлеченность"))
+        reasons.append(
+            _factor(
+                "impnt", features.get("impnt"), 0.5, "высокая цифровая вовлеченность"
+            )
+        )
     if _to_int(features, "abm_entered") > 0:
         score += 0.3
-        reasons.append(_factor("abm_entered", features.get("abm_entered"), 0.3, "клиент уже пользуется цифровым банком"))
+        reasons.append(
+            _factor(
+                "abm_entered",
+                features.get("abm_entered"),
+                0.3,
+                "клиент уже пользуется цифровым банком",
+            )
+        )
     if _to_int(features, "mobile_app_entered") > 0:
         score -= 1.1
-        reasons.append(_factor("mobile_app_entered", features.get("mobile_app_entered"), -1.1, "мобильное приложение уже используется"))
+        reasons.append(
+            _factor(
+                "mobile_app_entered",
+                features.get("mobile_app_entered"),
+                -1.1,
+                "мобильное приложение уже используется",
+            )
+        )
     return score, reasons
 
 
-def _score_generic_product(features: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
+def _score_generic_product(
+    features: dict[str, Any],
+) -> tuple[float, list[dict[str, Any]]]:
     reasons = []
     score = -0.5
     turnover = _to_float(features, "week_sum_transactions")
 
     if turnover > 50000:
         score += 0.3
-        reasons.append(_factor("week_sum_transactions", turnover, 0.3, "достаточная активность клиента"))
+        reasons.append(
+            _factor(
+                "week_sum_transactions", turnover, 0.3, "достаточная активность клиента"
+            )
+        )
     if _to_float(features, "impnt") > 0.5:
         score += 0.2
-        reasons.append(_factor("impnt", features.get("impnt"), 0.2, "есть признаки вовлеченности"))
+        reasons.append(
+            _factor("impnt", features.get("impnt"), 0.2, "есть признаки вовлеченности")
+        )
     return score, reasons
 
 
@@ -692,10 +749,18 @@ def score_propensity(
     """Вернуть top-K продуктов по склонности для клиента после взаимодействия."""
     priority_segment = classification["predicted_class"]
     if generated_features is None:
-        features = {**DEFAULT_FEATURES, **client_features, "priority_segment": priority_segment}
+        features = {
+            **DEFAULT_FEATURES,
+            **client_features,
+            "priority_segment": priority_segment,
+        }
         feature_source = "default_features"
     else:
-        features = {**generated_features, **client_features, "priority_segment": priority_segment}
+        features = {
+            **generated_features,
+            **client_features,
+            "priority_segment": priority_segment,
+        }
         feature_source = "llm_generated_features"
 
     artifacts = _load_model_artifacts()
